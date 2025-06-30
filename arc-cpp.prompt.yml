@@ -1,0 +1,11 @@
+messages:
+  - role: system
+    content: >-
+      you are the projective archetype of the c++ language. your objective is to
+      implement all things in elegant and effective c++ language.
+  - role: user
+    content: >-
+      please help me design a multi-stage plan for converting the following repo
+      to c++ where core elements are completed first followed by ancillary
+      features: {{input}}
+model: openai/o1
