@@ -11,7 +11,7 @@ namespace reservoircpp {
 
 // Base Readout class
 Readout::Readout(const std::string& name, int output_dim, bool input_bias)
-    : Node(name), input_bias_(input_bias), is_fitted_(false) {
+    : Node(name), input_bias_(input_bias), is_fitted_(false), readout_initialized_(false) {
     if (output_dim <= 0) {
         throw std::invalid_argument("Output dimension must be positive");
     }
@@ -21,6 +21,10 @@ Readout::Readout(const std::string& name, int output_dim, bool input_bias)
 }
 
 void Readout::initialize(const Matrix* x, const Matrix* y) {
+    if (readout_initialized_) {
+        return; // Already initialized
+    }
+    
     if (x != nullptr) {
         int input_size = x->cols();
         if (input_bias_) {
@@ -34,12 +38,12 @@ void Readout::initialize(const Matrix* x, const Matrix* y) {
     }
     
     initialize_weights();
-    // Base class handles is_initialized_ flag
+    readout_initialized_ = true;
 }
 
 void Readout::reset(const Vector* state) {
     is_fitted_ = false;
-    if (is_initialized()) {
+    if (readout_initialized_) {
         initialize_weights();
     }
     if (state != nullptr) {
@@ -132,10 +136,11 @@ void RidgeReadout::fit(const Matrix& x, const Matrix& y) {
 std::shared_ptr<Node> RidgeReadout::copy(const std::string& name) const {
     auto copy = std::make_shared<RidgeReadout>(name, output_dim()[0], ridge_, input_bias_);
     
-    if (is_initialized()) {
+    if (readout_initialized_) {
         copy->W_out_ = W_out_;
         copy->bias_ = bias_;
         copy->is_fitted_ = is_fitted_;
+        copy->readout_initialized_ = true;
         copy->set_input_dim(input_dim());
         copy->set_output_dim(output_dim());
     }
@@ -159,7 +164,7 @@ ForceReadout::ForceReadout(const std::string& name, int output_dim, Float learni
 void ForceReadout::initialize(const Matrix* x, const Matrix* y) {
     Readout::initialize(x, y);
     
-    if (is_initialized()) {
+    if (readout_initialized_) {
         // Initialize inverse correlation matrix
         int input_size = input_dim()[0];
         P_ = Matrix::Identity(input_size, input_size) / regularization_;
@@ -176,7 +181,7 @@ void ForceReadout::fit(const Matrix& x, const Matrix& y) {
     }
     
     // Initialize if not done
-    if (!is_initialized()) {
+    if (!readout_initialized_) {
         initialize(&x, &y);
     }
     
@@ -219,11 +224,12 @@ std::shared_ptr<Node> ForceReadout::copy(const std::string& name) const {
     auto copy = std::make_shared<ForceReadout>(name, output_dim()[0], learning_rate_,
                                               regularization_, input_bias_);
     
-    if (is_initialized()) {
+    if (readout_initialized_) {
         copy->W_out_ = W_out_;
         copy->bias_ = bias_;
         copy->P_ = P_;
         copy->is_fitted_ = is_fitted_;
+        copy->readout_initialized_ = true;
         copy->set_input_dim(input_dim());
         copy->set_output_dim(output_dim());
     }
@@ -250,7 +256,7 @@ void LMSReadout::fit(const Matrix& x, const Matrix& y) {
     }
     
     // Initialize if not done
-    if (!is_initialized()) {
+    if (!readout_initialized_) {
         initialize(&x, &y);
     }
     
@@ -287,10 +293,11 @@ std::shared_ptr<Node> LMSReadout::copy(const std::string& name) const {
     auto copy = std::make_shared<LMSReadout>(name, output_dim()[0], learning_rate_,
                                             input_bias_);
     
-    if (is_initialized()) {
+    if (readout_initialized_) {
         copy->W_out_ = W_out_;
         copy->bias_ = bias_;
         copy->is_fitted_ = is_fitted_;
+        copy->readout_initialized_ = true;
         copy->set_input_dim(input_dim());
         copy->set_output_dim(output_dim());
     }

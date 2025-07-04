@@ -38,7 +38,7 @@ TEST_CASE("Reservoir - Initialization", "[reservoir]") {
         
         reservoir.initialize(&x);
         
-        REQUIRE(reservoir.is_initialized());
+        REQUIRE(reservoir.is_reservoir_initialized());
         REQUIRE(reservoir.input_dim()[0] == 3);
         REQUIRE(reservoir.output_dim()[0] == 20);
         

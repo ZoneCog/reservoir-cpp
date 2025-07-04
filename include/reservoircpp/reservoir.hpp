@@ -94,6 +94,7 @@ public:
     Float input_scaling() const { return input_scaling_; }
     Float bias_scaling() const { return bias_scaling_; }
     const std::string& activation_name() const { return activation_name_; }
+    bool is_reservoir_initialized() const { return reservoir_initialized_; }
     
     // Weight matrices
     const Matrix& W() const { return W_; }
@@ -115,6 +116,11 @@ protected:
      * @brief Initialize weight matrices
      */
     virtual void initialize_weights();
+    
+    /**
+     * @brief Override the do_initialize method from Node
+     */
+    void do_initialize(const Matrix* x, const Matrix* y) override;
 
     /**
      * @brief Reservoir kernel computation
@@ -163,6 +169,7 @@ protected:
     
     // Flags
     bool use_internal_activation_;
+    bool reservoir_initialized_;  // Track our own initialization
 };
 
 /**

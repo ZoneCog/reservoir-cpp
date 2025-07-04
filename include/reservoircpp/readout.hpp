@@ -85,6 +85,7 @@ public:
     bool input_bias() const { return input_bias_; }
     const Matrix& W_out() const { return W_out_; }
     bool is_fitted() const { return is_fitted_; }
+    bool is_readout_initialized() const { return readout_initialized_; }
 
 protected:
     /**
@@ -103,6 +104,7 @@ protected:
     // Parameters
     bool input_bias_;
     bool is_fitted_;
+    bool readout_initialized_;  // Track our own initialization
     
     // Weight matrix
     Matrix W_out_;  // Output weights

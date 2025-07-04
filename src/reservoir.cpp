@@ -15,7 +15,7 @@ Reservoir::Reservoir(const std::string& name, int units, Float lr,
     : Node(name), units_(units), lr_(lr), connectivity_(connectivity),
       spectral_radius_(spectral_radius), input_scaling_(input_scaling),
       bias_scaling_(bias_scaling), activation_name_(activation),
-      use_internal_activation_(true) {
+      use_internal_activation_(true), reservoir_initialized_(false) {
     
     if (units <= 0) {
         throw std::invalid_argument("Number of units must be positive");
@@ -47,8 +47,12 @@ Reservoir::Reservoir(const std::string& name, int units, Float lr,
 }
 
 void Reservoir::initialize(const Matrix* x, const Matrix* y) {
+    if (reservoir_initialized_) {
+        return; // Already initialized
+    }
+    
     if (x != nullptr) {
-        // Set input dimension from data
+        // For reservoirs, input dimension is the number of features (columns)
         set_input_dim({static_cast<int>(x->cols())});
     }
     
@@ -56,12 +60,26 @@ void Reservoir::initialize(const Matrix* x, const Matrix* y) {
         throw std::runtime_error("Input dimension must be set before initialization");
     }
     
+    // Set output dimension to number of units
+    set_output_dim({units_});
+    
     // Initialize weight matrices
     initialize_weights();
     
-    // Mark as initialized using public interface
-    // The Node class should provide a protected method to set this
-    // For now, we'll rely on the base class implementation
+    // Initialize state
+    Vector zero_state = Vector::Zero(units_);
+    set_state(zero_state);
+    internal_state_ = Matrix::Zero(units_, 1);
+    
+    // Mark as initialized
+    reservoir_initialized_ = true;
+}
+
+void Reservoir::do_initialize(const Matrix* x, const Matrix* y) {
+    // This is called by Node::initialize, but we've already done our initialization
+    // Just do nothing here since we handled everything in our initialize() method
+    (void)x; // Suppress unused parameter warning
+    (void)y;
 }
 
 void Reservoir::reset(const Vector* state) {
@@ -79,7 +97,7 @@ void Reservoir::reset(const Vector* state) {
 }
 
 Matrix Reservoir::forward(const Matrix& x) {
-    if (!is_initialized()) {
+    if (!reservoir_initialized_) {
         throw std::runtime_error("Reservoir must be initialized before forward pass");
     }
     
@@ -108,7 +126,7 @@ std::shared_ptr<Node> Reservoir::copy(const std::string& name) const {
                                            input_scaling_, bias_scaling_);
     
     // Copy state if initialized
-    if (is_initialized()) {
+    if (reservoir_initialized_) {
         copy->W_ = W_;
         copy->W_in_ = W_in_;
         copy->bias_ = bias_;
@@ -117,6 +135,7 @@ std::shared_ptr<Node> Reservoir::copy(const std::string& name) const {
         copy->internal_state_ = internal_state_;
         copy->set_input_dim(input_dim());
         copy->set_output_dim(output_dim());
+        copy->reservoir_initialized_ = true;
     }
     
     return copy;
@@ -197,7 +216,7 @@ std::shared_ptr<Node> ESN::copy(const std::string& name) const {
                                      spectral_radius_, input_scaling_, bias_scaling_);
     
     // Copy state if initialized
-    if (is_initialized()) {
+    if (reservoir_initialized_) {
         copy->W_ = W_;
         copy->W_in_ = W_in_;
         copy->bias_ = bias_;
@@ -206,6 +225,7 @@ std::shared_ptr<Node> ESN::copy(const std::string& name) const {
         copy->internal_state_ = internal_state_;
         copy->set_input_dim(input_dim());
         copy->set_output_dim(output_dim());
+        copy->reservoir_initialized_ = true;
     }
     
     return copy;
