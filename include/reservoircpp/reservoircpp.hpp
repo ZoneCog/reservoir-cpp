@@ -23,11 +23,18 @@
 // Core type definitions
 #include "reservoircpp/types.hpp"
 
+// Utility functions
+#include "reservoircpp/utils.hpp"
+
+// Activation functions
+#include "reservoircpp/activations.hpp"
+
+// Node base class
+#include "reservoircpp/node.hpp"
+
 // Will be expanded with more includes as components are implemented
-// #include "reservoircpp/node.hpp"
 // #include "reservoircpp/reservoir.hpp"
 // #include "reservoircpp/readout.hpp"
-// #include "reservoircpp/activations.hpp"
 // #include "reservoircpp/matrix_generators.hpp"
 
 #endif // RESERVOIRCPP_HPP
