@@ -32,9 +32,13 @@
 // Node base class
 #include "reservoircpp/node.hpp"
 
-// Will be expanded with more includes as components are implemented
-// #include "reservoircpp/reservoir.hpp"
-// #include "reservoircpp/readout.hpp"
-// #include "reservoircpp/matrix_generators.hpp"
+// Matrix generation utilities
+#include "reservoircpp/matrix_generators.hpp"
+
+// Reservoir components
+#include "reservoircpp/reservoir.hpp"
+
+// Readout components
+#include "reservoircpp/readout.hpp"
 
 #endif // RESERVOIRCPP_HPP

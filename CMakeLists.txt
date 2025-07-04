@@ -26,7 +26,7 @@ find_package(Eigen3 REQUIRED)
 # Include directories
 include_directories(include)
 
-# Create the main library
+# Create the main library (now depends on core components)
 add_library(reservoircpp INTERFACE)
 target_include_directories(reservoircpp INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -37,6 +37,9 @@ target_compile_features(reservoircpp INTERFACE cxx_std_17)
 
 # Add subdirectories
 add_subdirectory(src)
+
+# Link the interface library with the core library
+target_link_libraries(reservoircpp INTERFACE reservoircpp_core)
 
 if(BUILD_TESTS)
     enable_testing()
@@ -53,7 +56,7 @@ endif()
 
 # Installation
 include(GNUInstallDirs)
-install(TARGETS reservoircpp
+install(TARGETS reservoircpp reservoircpp_core
     EXPORT reservoircppTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -1,11 +1,21 @@
-# Minimal CMakeLists.txt for src directory
-# This will be expanded as we add core library components
+# CMakeLists.txt for src directory
+# Build the core library with Stage 2 components
 
-# For now, this is a header-only library
-# When we add source files, we'll build a static/shared library here
+# Create the core library
+add_library(reservoircpp_core STATIC
+    matrix_generators.cpp
+    reservoir.cpp
+    readout.cpp
+)
 
-# Placeholder for future library source files
-# add_library(reservoircpp_core STATIC)
-# target_sources(reservoircpp_core PRIVATE
-#     # Future source files will be added here
-# )
+# Set include directories
+target_include_directories(reservoircpp_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# Link with Eigen
+target_link_libraries(reservoircpp_core PUBLIC Eigen3::Eigen)
+
+# Set C++ standard
+target_compile_features(reservoircpp_core PUBLIC cxx_std_17)

@@ -20,6 +20,9 @@ add_executable(reservoircpp_tests
     test_utils.cpp
     test_activations.cpp
     test_node.cpp
+    test_matrix_generators.cpp
+    test_reservoir.cpp
+    test_readout.cpp
 )
 
 target_link_libraries(reservoircpp_tests 
