@@ -17,6 +17,9 @@ add_executable(reservoircpp_tests
     test_main.cpp
     test_version.cpp
     test_types.cpp
+    test_utils.cpp
+    test_activations.cpp
+    test_node.cpp
 )
 
 target_link_libraries(reservoircpp_tests 
