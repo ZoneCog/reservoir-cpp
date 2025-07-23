@@ -117,6 +117,11 @@ void RidgeReadout::fit(const Matrix& x, const Matrix& y) {
         throw std::invalid_argument("Target dimension mismatch");
     }
     
+    // Initialize if not done already
+    if (!readout_initialized_) {
+        initialize(&x, &y);
+    }
+    
     Matrix processed_x = prepare_inputs(x);
     
     // Solve ridge regression: W = (X^T X + ridge * I)^{-1} X^T Y
@@ -137,12 +142,15 @@ std::shared_ptr<Node> RidgeReadout::copy(const std::string& name) const {
     auto copy = std::make_shared<RidgeReadout>(name, output_dim()[0], ridge_, input_bias_);
     
     if (readout_initialized_) {
+        // Set dimensions first
+        copy->set_input_dim(input_dim());
+        copy->set_output_dim(output_dim());
+        
+        // Copy weights and state
         copy->W_out_ = W_out_;
         copy->bias_ = bias_;
         copy->is_fitted_ = is_fitted_;
         copy->readout_initialized_ = true;
-        copy->set_input_dim(input_dim());
-        copy->set_output_dim(output_dim());
     }
     
     return copy;
@@ -225,13 +233,16 @@ std::shared_ptr<Node> ForceReadout::copy(const std::string& name) const {
                                               regularization_, input_bias_);
     
     if (readout_initialized_) {
+        // Set dimensions first
+        copy->set_input_dim(input_dim());
+        copy->set_output_dim(output_dim());
+        
+        // Copy weights and state
         copy->W_out_ = W_out_;
         copy->bias_ = bias_;
         copy->P_ = P_;
         copy->is_fitted_ = is_fitted_;
         copy->readout_initialized_ = true;
-        copy->set_input_dim(input_dim());
-        copy->set_output_dim(output_dim());
     }
     
     return copy;
@@ -294,12 +305,15 @@ std::shared_ptr<Node> LMSReadout::copy(const std::string& name) const {
                                             input_bias_);
     
     if (readout_initialized_) {
+        // Set dimensions first
+        copy->set_input_dim(input_dim());
+        copy->set_output_dim(output_dim());
+        
+        // Copy weights and state
         copy->W_out_ = W_out_;
         copy->bias_ = bias_;
         copy->is_fitted_ = is_fitted_;
         copy->readout_initialized_ = true;
-        copy->set_input_dim(input_dim());
-        copy->set_output_dim(output_dim());
     }
     
     return copy;

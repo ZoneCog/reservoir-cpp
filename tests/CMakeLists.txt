@@ -23,6 +23,8 @@ add_executable(reservoircpp_tests
     test_matrix_generators.cpp
     test_reservoir.cpp
     test_readout.cpp
+    test_observables.cpp
+    test_datasets.cpp
 )
 
 target_link_libraries(reservoircpp_tests 
