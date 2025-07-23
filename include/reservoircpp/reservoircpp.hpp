@@ -47,4 +47,11 @@
 // Datasets and data utilities
 #include "reservoircpp/datasets.hpp"
 
+// Stage 5: Ancillary and Advanced Features
+#include "reservoircpp/compat.hpp"
+#include "reservoircpp/experimental.hpp"
+#include "reservoircpp/hyper.hpp"
+#include "reservoircpp/plotting.hpp"
+#include "reservoircpp/gpu.hpp"
+
 #endif // RESERVOIRCPP_HPP
