@@ -202,22 +202,21 @@ void GpuMatrix::deallocate_memory() {
 GpuReservoir::GpuReservoir(const std::string& name, size_t units, float input_scaling,
                           float spectral_radius, float leak_rate, float connectivity,
                           float input_connectivity, unsigned int seed)
-    : Node(name), units_(units), input_scaling_(input_scaling), spectral_radius_(spectral_radius),
+    : Node(name, {{"units", static_cast<float>(units)}, 
+                  {"input_scaling", input_scaling}, 
+                  {"spectral_radius", spectral_radius},
+                  {"leak_rate", leak_rate},
+                  {"connectivity", connectivity},
+                  {"input_connectivity", input_connectivity},
+                  {"seed", static_cast<float>(seed)}}),
+      units_(units), input_scaling_(input_scaling), spectral_radius_(spectral_radius),
       leak_rate_(leak_rate), connectivity_(connectivity), input_connectivity_(input_connectivity), seed_(seed) {
     
-    set_output_dim({units});
-    
-    set_param("units", static_cast<float>(units_));
-    set_param("input_scaling", input_scaling_);
-    set_param("spectral_radius", spectral_radius_);
-    set_param("leak_rate", leak_rate_);
-    set_param("connectivity", connectivity_);
-    set_param("input_connectivity", input_connectivity_);
-    set_param("seed", static_cast<float>(seed_));
+    set_output_dim({static_cast<int>(units)});
 }
 
 void GpuReservoir::initialize() {
-    if (get_output_dim().empty()) {
+    if (output_dim().empty()) {
         throw std::runtime_error("GpuReservoir: output dimension not set");
     }
     
@@ -230,7 +229,7 @@ void GpuReservoir::initialize() {
     GpuMatrix::random_fill(W_, "uniform", -1.0f, 1.0f);
     
     std::cout << "GpuReservoir initialized with " << units_ << " units\n";
-    set_initialized(true);
+}
 }
 
 void GpuReservoir::reset_state() {
@@ -290,16 +289,17 @@ void GpuReservoir::forward_gpu(const GpuMatrix& gpu_input, GpuMatrix& gpu_output
 
 // GpuReadout Implementation
 GpuReadout::GpuReadout(const std::string& name, size_t output_dim, float ridge)
-    : Node(name), output_dim_(output_dim), ridge_(ridge) {
+    : Node(name, {{"output_dim", static_cast<float>(output_dim)}, 
+                  {"ridge", ridge}}),
+      output_dim_(output_dim), ridge_(ridge) {
     
-    set_output_dim({output_dim});
-    set_param("output_dim", static_cast<float>(output_dim_));
-    set_param("ridge", ridge_);
+    set_output_dim({static_cast<int>(output_dim)});
+}
 }
 
 void GpuReadout::initialize() {
     // Weights will be initialized during fitting
-    set_initialized(true);
+}
 }
 
 void GpuReadout::reset_state() {
@@ -434,7 +434,7 @@ size_t GpuUtils::auto_batch_size(size_t input_size, size_t available_memory) {
 
 std::unique_ptr<Node> GpuUtils::convert_to_gpu(const Node& cpu_node) {
     // Stub: would analyze node type and create GPU equivalent
-    std::cout << "Converting node '" << cpu_node.get_name() << "' to GPU (not implemented)\n";
+    std::cout << "Converting node '" << cpu_node.name() << "' to GPU (not implemented)\n";
     return nullptr;
 }
 

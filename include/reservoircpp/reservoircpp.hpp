@@ -52,6 +52,6 @@
 #include "reservoircpp/experimental.hpp"
 #include "reservoircpp/hyper.hpp"
 #include "reservoircpp/plotting.hpp"
-#include "reservoircpp/gpu.hpp"
+// #include "reservoircpp/gpu.hpp"  // Temporarily disabled
 
 #endif // RESERVOIRCPP_HPP

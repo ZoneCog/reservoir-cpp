@@ -224,8 +224,8 @@ public:
                  unsigned int seed = 42);
 
     Matrix forward(const Matrix& input) override;
-    void initialize() override;
-    void reset_state() override;
+    void initialize();
+    void reset_state();
 
     /**
      * @brief Forward pass using GPU matrices
@@ -271,8 +271,8 @@ public:
                float ridge = 1e-6f);
 
     Matrix forward(const Matrix& input) override;
-    void initialize() override;
-    void reset_state() override;
+    void initialize();
+    void reset_state();
 
     /**
      * @brief Fit readout weights using GPU

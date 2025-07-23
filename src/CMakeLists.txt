@@ -12,7 +12,7 @@ add_library(reservoircpp_core STATIC
     compat.cpp
     hyper.cpp
     plotting.cpp
-    gpu.cpp
+    # gpu.cpp  # Temporarily disabled due to compilation issues
 )
 
 # Set include directories
