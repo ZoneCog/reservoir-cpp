@@ -8,4 +8,8 @@ target_link_libraries(simple_example reservoircpp)
 add_executable(stage2_example stage2_example.cpp)
 target_link_libraries(stage2_example reservoircpp)
 
+# Stage 3 & 4 example demonstrating observables and datasets
+add_executable(stage3_stage4_example stage3_stage4_example.cpp)
+target_link_libraries(stage3_stage4_example reservoircpp)
+
 message(STATUS "Building examples")
