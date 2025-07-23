@@ -41,4 +41,10 @@
 // Readout components
 #include "reservoircpp/readout.hpp"
 
+// Observables and metrics
+#include "reservoircpp/observables.hpp"
+
+// Datasets and data utilities
+#include "reservoircpp/datasets.hpp"
+
 #endif // RESERVOIRCPP_HPP
