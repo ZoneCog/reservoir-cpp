@@ -254,10 +254,10 @@ TEST_CASE("Stage 7 - Quality Assurance", "[stage7][quality]") {
     SECTION("Reproducibility Validation") {
         // Test that operations with same seed produce same results
         utils::set_seed(42);
-        Matrix random1 = utils::random_matrix(10, 10);
+        Matrix random1 = matrix_generators::uniform(10, 10);
         
         utils::set_seed(42);
-        Matrix random2 = utils::random_matrix(10, 10);
+        Matrix random2 = matrix_generators::uniform(10, 10);
         
         // Should be identical
         for (int i = 0; i < 10; ++i) {
@@ -268,10 +268,16 @@ TEST_CASE("Stage 7 - Quality Assurance", "[stage7][quality]") {
         
         // Test dataset reproducibility
         utils::set_seed(123);
-        auto [X1, y1] = datasets::mackey_glass(1000);
+        auto mg1 = datasets::mackey_glass(1000);
+        auto data1 = datasets::to_forecasting(mg1);
+        auto X1 = std::get<0>(data1);
+        auto y1 = std::get<1>(data1);
         
         utils::set_seed(123);
-        auto [X2, y2] = datasets::mackey_glass(1000);
+        auto mg2 = datasets::mackey_glass(1000);
+        auto data2 = datasets::to_forecasting(mg2);
+        auto X2 = std::get<0>(data2);
+        auto y2 = std::get<1>(data2);
         
         REQUIRE(X1.rows() == X2.rows());
         REQUIRE(X1.cols() == X2.cols());
@@ -294,8 +300,15 @@ TEST_CASE("Stage 7 - Integration and Regression Testing", "[stage7][integration]
         utils::set_seed(42);
         
         // Generate data
-        auto [X_train, y_train] = datasets::mackey_glass(1000);
-        auto [X_test, y_test] = datasets::mackey_glass(500);
+        auto mg_train = datasets::mackey_glass(1000);
+        auto train_data = datasets::to_forecasting(mg_train);
+        auto X_train = std::get<0>(train_data);
+        auto y_train = std::get<1>(train_data);
+        
+        auto mg_test = datasets::mackey_glass(500);
+        auto test_data = datasets::to_forecasting(mg_test);
+        auto X_test = std::get<0>(test_data);
+        auto y_test = std::get<1>(test_data);
         
         // Create and train model
         Reservoir reservoir("integration_test", 100);
@@ -349,7 +362,7 @@ TEST_CASE("Stage 7 - Integration and Regression Testing", "[stage7][integration]
         // Test all combinations
         for (auto& reservoir : reservoirs) {
             reservoir->initialize(&input);
-            auto states = reservoir->forward(input);
+            auto states = (*reservoir)(input); // Use operator() instead of protected forward()
             
             for (auto& readout : readouts) {
                 readout->fit(states, targets);

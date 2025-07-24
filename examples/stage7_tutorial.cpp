@@ -13,7 +13,7 @@ using namespace reservoircpp;
  */
 int main() {
     std::cout << "ReservoirCpp Stage 7 - Testing and Quality Assurance Tutorial" << std::endl;
-    std::cout << "ReservoirCpp v" << RESERVOIRCPP_VERSION << " - C++ Reservoir Computing Library" << std::endl;
+    std::cout << reservoircpp::version_info() << std::endl;
     std::cout << std::endl;
 
     try {
@@ -169,13 +169,19 @@ int main() {
         // Test reproducibility
         std::cout << "\n--- Reproducibility Check ---" << std::endl;
         utils::set_seed(123);
-        auto [X1, y1] = datasets::mackey_glass(500);
+        auto mg1 = datasets::mackey_glass(500);
+        auto data1 = datasets::to_forecasting(mg1);
+        auto X1 = std::get<0>(data1);
+        auto y1 = std::get<1>(data1);
         
         utils::set_seed(123);
-        auto [X2, y2] = datasets::mackey_glass(500);
+        auto mg2 = datasets::mackey_glass(500);
+        auto data2 = datasets::to_forecasting(mg2);
+        auto X2 = std::get<0>(data2);
+        auto y2 = std::get<1>(data2);
         
         bool reproducible = true;
-        for (int i = 0; i < std::min(X1.rows(), 10); ++i) {
+        for (int i = 0; i < std::min(static_cast<int>(X1.rows()), 10); ++i) {
             for (int j = 0; j < X1.cols(); ++j) {
                 if (std::abs(X1(i, j) - X2(i, j)) > 1e-10f) {
                     reproducible = false;
@@ -199,7 +205,7 @@ int main() {
         }
         
         try {
-            matrix_generators::create_reservoir_weights(10, 10, -0.1f, 0.9f);
+            matrix_generators::generate_internal_weights(10, -0.1f, 0.9f);
             error_handling_works = false; // Should have thrown
         } catch (const std::invalid_argument&) {
             // Expected
@@ -220,8 +226,15 @@ int main() {
         
         // Complete workflow test
         utils::set_seed(42);
-        auto [X_train, y_train] = datasets::mackey_glass(1000);
-        auto [X_test, y_test] = datasets::mackey_glass(500);
+        auto mg_train = datasets::mackey_glass(1000);
+        auto train_data = datasets::to_forecasting(mg_train);
+        auto X_train = std::get<0>(train_data);
+        auto y_train = std::get<1>(train_data);
+        
+        auto mg_test = datasets::mackey_glass(500);
+        auto test_data = datasets::to_forecasting(mg_test);
+        auto X_test = std::get<0>(test_data);
+        auto y_test = std::get<1>(test_data);
         
         Reservoir reservoir("integration", 200);
         RidgeReadout readout("integration", 1);
