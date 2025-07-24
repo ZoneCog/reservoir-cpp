@@ -28,4 +28,8 @@ target_link_libraries(practical_tutorial reservoircpp)
 add_executable(stage6_tutorial stage6_tutorial.cpp)
 target_link_libraries(stage6_tutorial reservoircpp)
 
+# Stage 7 tutorial - Testing and Quality Assurance
+add_executable(stage7_tutorial stage7_tutorial.cpp)
+target_link_libraries(stage7_tutorial reservoircpp)
+
 message(STATUS "Building examples")
