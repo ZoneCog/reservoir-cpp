@@ -1,9 +1,27 @@
 @PACKAGE_INIT@
 
+# ReservoirCpp CMake configuration file
+
 include(CMakeFindDependencyMacro)
 
+# Find required dependencies
 find_dependency(Eigen3)
 
+# Include the exported targets
 include("${CMAKE_CURRENT_LIST_DIR}/reservoircppTargets.cmake")
 
+# Set variables for header-only usage
+set(RESERVOIRCPP_VERSION "@PROJECT_VERSION@")
+set(RESERVOIRCPP_INCLUDE_DIRS "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")
+
+# Check that all required components were found
 check_required_components(reservoircpp)
+
+# Provide compatibility with both reservoircpp:: and ReservoirCpp:: namespaces
+if(TARGET reservoircpp::reservoircpp AND NOT TARGET ReservoirCpp::reservoircpp)
+    add_library(ReservoirCpp::reservoircpp ALIAS reservoircpp::reservoircpp)
+endif()
+
+if(TARGET reservoircpp::reservoircpp_core AND NOT TARGET ReservoirCpp::core)
+    add_library(ReservoirCpp::core ALIAS reservoircpp::reservoircpp_core)
+endif()

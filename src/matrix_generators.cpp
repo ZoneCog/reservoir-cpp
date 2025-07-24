@@ -128,6 +128,13 @@ Matrix scale_spectral_radius(const Matrix& matrix, Float target_sr) {
 
 Matrix generate_internal_weights(int units, Float connectivity, Float spectral_radius,
                                 const std::string& distribution, int seed) {
+    if (connectivity < 0.0 || connectivity > 1.0) {
+        throw std::invalid_argument("Connectivity must be between 0 and 1");
+    }
+    if (spectral_radius < 0.0) {
+        throw std::invalid_argument("Spectral radius must be non-negative");
+    }
+    
     Matrix weights = uniform(units, units, -1.0, 1.0, connectivity, seed);
     
     // Apply spectral radius scaling
@@ -215,8 +222,30 @@ Matrix generate_random_values(int rows, int cols, const std::string& distributio
     if (seed >= 0) {
         gen.seed(seed);
     } else {
-        std::random_device rd;
-        gen.seed(rd());
+        // Use global random generator when seed is -1
+        auto& global_rng = utils::RandomGenerator::instance();
+        if (distribution == "uniform") {
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    matrix(i, j) = global_rng.uniform(param1, param2);
+                }
+            }
+        } else if (distribution == "normal") {
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    matrix(i, j) = global_rng.normal(param1, param2);
+                }
+            }
+        } else if (distribution == "bernoulli") {
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    matrix(i, j) = (global_rng.uniform() < param1) ? 1.0 : -1.0;
+                }
+            }
+        } else {
+            throw std::invalid_argument("Unknown distribution: " + distribution);
+        }
+        return matrix;
     }
     
     if (distribution == "uniform") {

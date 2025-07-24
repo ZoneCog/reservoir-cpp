@@ -1,0 +1,31 @@
+{
+  "name": "reservoircpp",
+  "version": "0.1.0",
+  "description": "A modern C++ implementation of reservoir computing algorithms",
+  "homepage": "https://github.com/ZoneCog/reservoircpp",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "eigen3",
+      "version>=": "3.4.0"
+    }
+  ],
+  "default-features": [],
+  "features": {
+    "tests": {
+      "description": "Build tests",
+      "dependencies": [
+        {
+          "name": "catch2",
+          "version>=": "3.4.0"
+        }
+      ]
+    },
+    "examples": {
+      "description": "Build examples"
+    },
+    "header-only": {
+      "description": "Header-only library mode"
+    }
+  }
+}
