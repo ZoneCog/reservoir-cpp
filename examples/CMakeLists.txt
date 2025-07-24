@@ -32,4 +32,8 @@ target_link_libraries(stage6_tutorial reservoircpp)
 add_executable(stage7_tutorial stage7_tutorial.cpp)
 target_link_libraries(stage7_tutorial reservoircpp)
 
+# IntrinsicPlasticity example demonstrating IP reservoir functionality
+add_executable(intrinsic_plasticity_example intrinsic_plasticity_example.cpp)
+target_link_libraries(intrinsic_plasticity_example reservoircpp)
+
 message(STATUS "Building examples")

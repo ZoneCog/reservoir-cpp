@@ -262,3 +262,200 @@ TEST_CASE("Reservoir - Edge cases", "[reservoir]") {
         REQUIRE(output.cols() == 5);
     }
 }
+
+TEST_CASE("IntrinsicPlasticity - Basic construction", "[intrinsic_plasticity]") {
+    SECTION("Valid parameters with tanh") {
+        IntrinsicPlasticity ip("test_ip", 50, 1.0, 0.0, 1.0, 5e-4, 1, "tanh");
+        
+        REQUIRE(ip.name() == "test_ip");
+        REQUIRE(ip.units() == 50);
+        REQUIRE_THAT(ip.leak_rate(), Catch::Matchers::WithinAbs(1.0, 1e-10));
+        REQUIRE_THAT(ip.mu(), Catch::Matchers::WithinAbs(0.0, 1e-10));
+        REQUIRE_THAT(ip.sigma(), Catch::Matchers::WithinAbs(1.0, 1e-10));
+        REQUIRE_THAT(ip.learning_rate(), Catch::Matchers::WithinAbs(5e-4, 1e-10));
+        REQUIRE(ip.epochs() == 1);
+        REQUIRE(ip.activation_name() == "tanh");
+    }
+    
+    SECTION("Valid parameters with sigmoid") {
+        IntrinsicPlasticity ip("test_ip", 30, 0.8, 0.5, 0.5, 1e-3, 5, "sigmoid");
+        
+        REQUIRE(ip.name() == "test_ip");
+        REQUIRE(ip.units() == 30);
+        REQUIRE_THAT(ip.mu(), Catch::Matchers::WithinAbs(0.5, 1e-10));
+        REQUIRE(ip.epochs() == 5);
+        REQUIRE(ip.activation_name() == "sigmoid");
+    }
+    
+    SECTION("Invalid parameters") {
+        REQUIRE_THROWS_AS(IntrinsicPlasticity("test", 10, 1.0, 0.0, 1.0, 5e-4, 1, "relu"), 
+                         std::invalid_argument);
+        REQUIRE_THROWS_AS(IntrinsicPlasticity("test", 10, 1.0, 0.0, 1.0, -1e-4), 
+                         std::invalid_argument);
+        REQUIRE_THROWS_AS(IntrinsicPlasticity("test", 10, 1.0, 0.0, 1.0, 5e-4, 0), 
+                         std::invalid_argument);
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Initialization", "[intrinsic_plasticity]") {
+    SECTION("Initialize with input data") {
+        IntrinsicPlasticity ip("test_ip", 20);
+        
+        Matrix x(10, 3);  // 10 samples, 3 features
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        REQUIRE(ip.is_reservoir_initialized());
+        REQUIRE(ip.input_dim()[0] == 3);
+        REQUIRE(ip.output_dim()[0] == 20);
+        
+        // Check IP parameters are initialized correctly
+        REQUIRE(ip.a().rows() == 20);
+        REQUIRE(ip.a().cols() == 1);
+        REQUIRE(ip.b().rows() == 20);
+        REQUIRE(ip.b().cols() == 1);
+        
+        // Initial a should be ones, b should be zeros
+        REQUIRE(ip.a().isApprox(Matrix::Ones(20, 1), 1e-10));
+        REQUIRE(ip.b().cwiseAbs().sum() < 1e-10);
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Forward pass", "[intrinsic_plasticity]") {
+    SECTION("Forward pass produces valid output") {
+        IntrinsicPlasticity ip("test_ip", 10, 1.0, 0.0, 1.0, 5e-4, 1, "tanh");
+        
+        Matrix x(5, 2);  // 5 samples, 2 features
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        Matrix output = ip.forward(x);
+        
+        REQUIRE(output.rows() == 5);
+        REQUIRE(output.cols() == 10);
+        
+        // Output should be within tanh range
+        REQUIRE(output.cwiseAbs().maxCoeff() <= 1.0);
+    }
+    
+    SECTION("Forward pass with sigmoid activation") {
+        IntrinsicPlasticity ip("test_ip", 8, 1.0, 0.5, 1.0, 1e-3, 1, "sigmoid");
+        
+        Matrix x(3, 2);
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        Matrix output = ip.forward(x);
+        
+        REQUIRE(output.rows() == 3);
+        REQUIRE(output.cols() == 8);
+        
+        // Output should be in sigmoid range [0, 1]
+        REQUIRE(output.minCoeff() >= 0.0);
+        REQUIRE(output.maxCoeff() <= 1.0);
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Training functionality", "[intrinsic_plasticity]") {
+    SECTION("Partial fit changes IP parameters") {
+        IntrinsicPlasticity ip("test_ip", 5, 1.0, 0.0, 1.0, 1e-2, 1, "tanh");
+        
+        Matrix x(20, 2);  // Long sequence for training
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        // Store initial parameters
+        Matrix a_initial = ip.a();
+        Matrix b_initial = ip.b();
+        
+        // Train with partial fit
+        ip.partial_fit(x, 5);  // 5 warmup steps
+        
+        // Parameters should have changed
+        REQUIRE_FALSE(ip.a().isApprox(a_initial, 1e-3));
+        REQUIRE_FALSE(ip.b().isApprox(b_initial, 1e-3));
+    }
+    
+    SECTION("Fit with multiple sequences") {
+        IntrinsicPlasticity ip("test_ip", 8, 1.0, 0.0, 1.0, 5e-3, 2, "tanh");
+        
+        Matrix x1(15, 3);
+        Matrix x2(15, 3);
+        x1.setRandom();
+        x2.setRandom();
+        
+        std::vector<Matrix> sequences = {x1, x2};
+        
+        ip.initialize(&x1);
+        
+        // Store initial parameters
+        Matrix a_initial = ip.a();
+        Matrix b_initial = ip.b();
+        
+        // Train with multiple sequences and epochs
+        ip.fit(sequences, 3);  // 3 warmup steps
+        
+        // Parameters should have changed after training
+        REQUIRE_FALSE(ip.a().isApprox(a_initial, 1e-3));
+        REQUIRE_FALSE(ip.b().isApprox(b_initial, 1e-3));
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Copy functionality", "[intrinsic_plasticity]") {
+    SECTION("Copy IP reservoir") {
+        IntrinsicPlasticity ip("original", 12, 0.8, 0.2, 0.8, 1e-3, 3, "sigmoid");
+        
+        Matrix x(5, 4);
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        auto copy = ip.copy("copy");
+        auto copy_ip = dynamic_cast<IntrinsicPlasticity*>(copy.get());
+        
+        REQUIRE(copy_ip != nullptr);
+        REQUIRE(copy_ip->name() == "copy");
+        REQUIRE(copy_ip->units() == 12);
+        REQUIRE(copy_ip->leak_rate() == 0.8);
+        REQUIRE(copy_ip->mu() == 0.2);
+        REQUIRE(copy_ip->sigma() == 0.8);
+        REQUIRE(copy_ip->learning_rate() == 1e-3);
+        REQUIRE(copy_ip->epochs() == 3);
+        REQUIRE(copy_ip->activation_name() == "sigmoid");
+        
+        // Check that IP parameters are copied
+        REQUIRE(copy_ip->a().isApprox(ip.a(), 1e-10));
+        REQUIRE(copy_ip->b().isApprox(ip.b(), 1e-10));
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Parameter behavior", "[intrinsic_plasticity]") {
+    SECTION("IP parameters evolve during training") {
+        IntrinsicPlasticity ip("test_ip", 3, 1.0, 0.0, 1.0, 0.1, 1, "tanh");  // High learning rate for testing
+        
+        Matrix x(10, 1);
+        x.setConstant(0.5);  // Constant input
+        
+        ip.initialize(&x);
+        
+        // Store initial values
+        Matrix a_before = ip.a();
+        Matrix b_before = ip.b();
+        
+        // Train
+        ip.partial_fit(x, 2);
+        
+        // Values should change
+        Matrix a_after = ip.a();
+        Matrix b_after = ip.b();
+        
+        bool a_changed = !a_after.isApprox(a_before, 1e-6);
+        bool b_changed = !b_after.isApprox(b_before, 1e-6);
+        
+        REQUIRE((a_changed || b_changed));  // At least one parameter should change
+    }
+}
