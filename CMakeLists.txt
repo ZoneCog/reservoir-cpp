@@ -19,6 +19,8 @@ endif()
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
 option(BUILD_DOCS "Build documentation" OFF)
+option(BUILD_HEADER_ONLY "Build as header-only library" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 # Find required packages
 find_package(Eigen3 REQUIRED)
@@ -27,19 +29,36 @@ find_package(Eigen3 REQUIRED)
 include_directories(include)
 
 # Create the main library (now depends on core components)
-add_library(reservoircpp INTERFACE)
-target_include_directories(reservoircpp INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(reservoircpp INTERFACE Eigen3::Eigen)
-target_compile_features(reservoircpp INTERFACE cxx_std_17)
-
-# Add subdirectories
-add_subdirectory(src)
-
-# Link the interface library with the core library
-target_link_libraries(reservoircpp INTERFACE reservoircpp_core)
+if(BUILD_HEADER_ONLY)
+    # Header-only library mode
+    add_library(reservoircpp INTERFACE)
+    target_include_directories(reservoircpp INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+    target_link_libraries(reservoircpp INTERFACE Eigen3::Eigen)
+    target_compile_features(reservoircpp INTERFACE cxx_std_17)
+    target_compile_definitions(reservoircpp INTERFACE RESERVOIRCPP_HEADER_ONLY)
+    
+    # For header-only mode, we don't build the core library
+    set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+else()
+    # Normal library mode with compiled components
+    add_library(reservoircpp INTERFACE)
+    target_include_directories(reservoircpp INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+    target_link_libraries(reservoircpp INTERFACE Eigen3::Eigen)
+    target_compile_features(reservoircpp INTERFACE cxx_std_17)
+    
+    # Add subdirectories
+    add_subdirectory(src)
+    
+    # Link the interface library with the core library
+    target_link_libraries(reservoircpp INTERFACE reservoircpp_core)
+endif()
 
 if(BUILD_TESTS)
     enable_testing()
@@ -56,13 +75,22 @@ endif()
 
 # Installation
 include(GNUInstallDirs)
-install(TARGETS reservoircpp reservoircpp_core
-    EXPORT reservoircppTargets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+
+# Install targets (conditional for header-only mode)
+if(BUILD_HEADER_ONLY)
+    install(TARGETS reservoircpp
+        EXPORT reservoircppTargets
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+else()
+    install(TARGETS reservoircpp reservoircpp_core
+        EXPORT reservoircppTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+endif()
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
@@ -92,3 +120,16 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/reservoircppConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/reservoircpp
 )
+
+# Generate and install pkgconfig file
+if(NOT BUILD_HEADER_ONLY)
+    configure_file(
+        cmake/reservoircpp.pc.in
+        reservoircpp.pc
+        @ONLY
+    )
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/reservoircpp.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+    )
+endif()
