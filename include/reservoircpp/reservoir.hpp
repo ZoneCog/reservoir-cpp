@@ -343,6 +343,112 @@ private:
     bool fitted_;           // Whether the model has been fitted
 };
 
+/**
+ * @brief NVAR (Nonlinear Vector Autoregressive) Node
+ * 
+ * NVAR creates features by combining delayed inputs with nonlinear transformations
+ * using monomials of specified order. Based on Gauthier et al. (2021).
+ */
+class NVAR : public Node {
+public:
+    /**
+     * @brief Construct a new NVAR node
+     * 
+     * @param name Node name
+     * @param delay Maximum delay of inputs (k)
+     * @param order Order of nonlinear monomials (n) 
+     * @param strides Strides between delayed inputs (default: 1)
+     */
+    NVAR(const std::string& name, int delay, int order, int strides = 1);
+
+    /**
+     * @brief Initialize the NVAR node
+     * 
+     * @param x Input data for initialization (optional)
+     * @param y Target data for initialization (optional)
+     */
+    void initialize(const Matrix* x = nullptr, const Matrix* y = nullptr) override;
+
+    /**
+     * @brief Reset the NVAR node state
+     * 
+     * @param state New state (optional, defaults to zeros)
+     */
+    void reset(const Vector* state = nullptr) override;
+
+    /**
+     * @brief Forward pass through the NVAR node
+     * 
+     * @param x Input data
+     * @return NVAR output with linear and nonlinear features
+     */
+    Matrix forward(const Matrix& x) override;
+
+    /**
+     * @brief Copy the NVAR node
+     * 
+     * @param name New name
+     * @return Copied NVAR node
+     */
+    std::shared_ptr<Node> copy(const std::string& name) const override;
+
+    // Getters
+    int delay() const { return delay_; }
+    int order() const { return order_; }
+    int strides() const { return strides_; }
+    int linear_dim() const { return linear_dim_; }
+    int nonlinear_dim() const { return nonlinear_dim_; }
+    const Matrix& store() const { return store_; }
+
+private:
+    /**
+     * @brief Override the do_initialize method from Node
+     */
+    void do_initialize(const Matrix* x, const Matrix* y) override;
+
+    /**
+     * @brief Compute combinations with replacement
+     * 
+     * @param n Total number of items
+     * @param k Number to choose
+     * @return Number of combinations
+     */
+    int combinations_with_replacement(int n, int k);
+
+    /**
+     * @brief Generate monomial indices for nonlinear features
+     * 
+     * @param linear_dim Number of linear features
+     * @param order Order of monomials
+     * @return Matrix of indices for each monomial
+     */
+    std::vector<std::vector<int>> generate_monomial_indices(int linear_dim, int order);
+
+    /**
+     * @brief Compute monomial features from linear features
+     * 
+     * @param linear_feats Linear feature vector
+     * @return Nonlinear monomial features
+     */
+    Vector compute_monomials(const Vector& linear_feats);
+
+    // NVAR parameters
+    int delay_;             // Maximum delay of inputs
+    int order_;             // Order of nonlinear monomials
+    int strides_;           // Strides between delayed inputs
+    
+    // Computed dimensions
+    int linear_dim_;        // Dimension of linear features
+    int nonlinear_dim_;     // Dimension of nonlinear features
+    
+    // Storage and precomputed indices
+    Matrix store_;          // Storage for delayed inputs (delay*strides x input_dim)
+    std::vector<std::vector<int>> monomial_indices_;  // Precomputed monomial indices
+    
+    // Flags
+    bool nvar_initialized_; // Track our own initialization
+};
+
 } // namespace reservoircpp
 
 #endif // RESERVOIRCPP_RESERVOIR_HPP

@@ -459,3 +459,223 @@ TEST_CASE("IntrinsicPlasticity - Parameter behavior", "[intrinsic_plasticity]") 
         REQUIRE((a_changed || b_changed));  // At least one parameter should change
     }
 }
+
+TEST_CASE("NVAR - Basic construction", "[nvar]") {
+    SECTION("Valid parameters") {
+        NVAR nvar("test_nvar", 3, 2, 1);
+        
+        REQUIRE(nvar.name() == "test_nvar");
+        REQUIRE(nvar.delay() == 3);
+        REQUIRE(nvar.order() == 2);
+        REQUIRE(nvar.strides() == 1);
+    }
+    
+    SECTION("With strides") {
+        NVAR nvar("test_nvar", 5, 3, 2);
+        
+        REQUIRE(nvar.delay() == 5);
+        REQUIRE(nvar.order() == 3);
+        REQUIRE(nvar.strides() == 2);
+    }
+    
+    SECTION("Invalid parameters") {
+        REQUIRE_THROWS_AS(NVAR("test", 0, 2), std::invalid_argument);
+        REQUIRE_THROWS_AS(NVAR("test", 3, 0), std::invalid_argument);
+        REQUIRE_THROWS_AS(NVAR("test", 3, 2, 0), std::invalid_argument);
+    }
+}
+
+TEST_CASE("NVAR - Initialization", "[nvar]") {
+    SECTION("Initialize with input data") {
+        NVAR nvar("test_nvar", 2, 2);  // delay=2, order=2
+        
+        Matrix x(5, 3);  // 5 samples, 3 features
+        x.setRandom();
+        
+        nvar.initialize(&x);
+        
+        REQUIRE(nvar.input_dim()[0] == 3);
+        
+        // Linear dimension: delay * input_dim = 2 * 3 = 6
+        REQUIRE(nvar.linear_dim() == 6);
+        
+        // Nonlinear dimension: C(6+2-1, 2) = C(7, 2) = 21
+        REQUIRE(nvar.nonlinear_dim() == 21);
+        
+        // Total output dimension: 6 + 21 = 27
+        REQUIRE(nvar.output_dim()[0] == 27);
+        
+        // Storage should be initialized
+        REQUIRE(nvar.store().rows() == 2);  // delay * strides = 2 * 1
+        REQUIRE(nvar.store().cols() == 3);  // input_dim
+    }
+    
+    SECTION("Initialize with strides") {
+        NVAR nvar("test_nvar", 3, 2, 2);  // delay=3, order=2, strides=2
+        
+        Matrix x(5, 2);  // 5 samples, 2 features
+        x.setRandom();
+        
+        nvar.initialize(&x);
+        
+        // Linear dimension: delay * input_dim = 3 * 2 = 6
+        REQUIRE(nvar.linear_dim() == 6);
+        
+        // Storage rows: delay * strides = 3 * 2 = 6
+        REQUIRE(nvar.store().rows() == 6);
+        REQUIRE(nvar.store().cols() == 2);
+    }
+    
+    SECTION("Initialize without input data") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        REQUIRE_THROWS_AS(nvar.initialize(), std::runtime_error);
+    }
+}
+
+TEST_CASE("NVAR - Forward pass", "[nvar]") {
+    SECTION("Single timestep") {
+        NVAR nvar("test_nvar", 2, 2);  // delay=2, order=2
+        
+        Matrix x(1, 2);  // 1 sample, 2 features
+        x << 0.5, -0.3;
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        REQUIRE(output.rows() == 1);
+        REQUIRE(output.cols() == 14);  // 4 linear + 10 nonlinear features
+        
+        // First timestep with no history should have zeros for delayed features
+        // but current input should be present
+        REQUIRE(output(0, 0) == 0.5);   // First linear feature (current input)
+        REQUIRE(output(0, 1) == -0.3);  // Second linear feature (current input)
+        REQUIRE(output(0, 2) == 0.0);   // Third linear feature (t-1, should be 0)
+        REQUIRE(output(0, 3) == 0.0);   // Fourth linear feature (t-1, should be 0)
+    }
+    
+    SECTION("Multiple timesteps build history") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        Matrix x(3, 2);
+        x << 1.0, 2.0,   // t=0
+             3.0, 4.0,   // t=1
+             5.0, 6.0;   // t=2
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        REQUIRE(output.rows() == 3);
+        REQUIRE(output.cols() == 14);
+        
+        // At t=1, we should have history from t=0
+        REQUIRE(output(1, 0) == 3.0);  // Current input feature 1
+        REQUIRE(output(1, 1) == 4.0);  // Current input feature 2
+        REQUIRE(output(1, 2) == 1.0);  // t-1 input feature 1
+        REQUIRE(output(1, 3) == 2.0);  // t-1 input feature 2
+        
+        // At t=2, we should have full history
+        REQUIRE(output(2, 0) == 5.0);  // Current input feature 1
+        REQUIRE(output(2, 1) == 6.0);  // Current input feature 2
+        REQUIRE(output(2, 2) == 3.0);  // t-1 input feature 1
+        REQUIRE(output(2, 3) == 4.0);  // t-1 input feature 2
+    }
+    
+    SECTION("Nonlinear features are computed") {
+        NVAR nvar("test_nvar", 1, 2);  // Simple case: delay=1, order=2
+        
+        Matrix x(1, 2);
+        x << 2.0, 3.0;
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        // Linear features: [2.0, 3.0]
+        REQUIRE(output(0, 0) == 2.0);
+        REQUIRE(output(0, 1) == 3.0);
+        
+        // Nonlinear features (monomials of order 2):
+        // x1*x1, x1*x2, x2*x2 = 4.0, 6.0, 9.0
+        REQUIRE(output(0, 2) == 4.0);  // 2.0 * 2.0
+        REQUIRE(output(0, 3) == 6.0);  // 2.0 * 3.0
+        REQUIRE(output(0, 4) == 9.0);  // 3.0 * 3.0
+    }
+    
+    SECTION("Dimension mismatch") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        Matrix x_init(3, 2);
+        x_init.setRandom();
+        nvar.initialize(&x_init);
+        
+        Matrix x_wrong(3, 3);  // Wrong input dimension
+        x_wrong.setRandom();
+        
+        REQUIRE_THROWS_AS(nvar.forward(x_wrong), std::invalid_argument);
+    }
+}
+
+TEST_CASE("NVAR - Copy functionality", "[nvar]") {
+    SECTION("Copy NVAR node") {
+        NVAR nvar("original", 3, 2, 2);
+        
+        Matrix x(5, 4);
+        x.setRandom();
+        
+        nvar.initialize(&x);
+        
+        auto copy = nvar.copy("copy");
+        auto copy_nvar = dynamic_cast<NVAR*>(copy.get());
+        
+        REQUIRE(copy_nvar != nullptr);
+        REQUIRE(copy_nvar->name() == "copy");
+        REQUIRE(copy_nvar->delay() == 3);
+        REQUIRE(copy_nvar->order() == 2);
+        REQUIRE(copy_nvar->strides() == 2);
+        REQUIRE(copy_nvar->linear_dim() == nvar.linear_dim());
+        REQUIRE(copy_nvar->nonlinear_dim() == nvar.nonlinear_dim());
+        REQUIRE(copy_nvar->input_dim() == nvar.input_dim());
+        REQUIRE(copy_nvar->output_dim() == nvar.output_dim());
+    }
+}
+
+TEST_CASE("NVAR - Reset functionality", "[nvar]") {
+    SECTION("Reset clears history") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        Matrix x(3, 2);
+        x.setOnes();
+        
+        nvar.initialize(&x);
+        
+        // Run forward to build history
+        nvar.forward(x);
+        
+        // Reset should clear the storage
+        nvar.reset();
+        
+        // After reset, storage should be zero
+        REQUIRE(nvar.store().cwiseAbs().sum() < 1e-10);
+    }
+}
+
+TEST_CASE("NVAR - Strides functionality", "[nvar]") {
+    SECTION("Strides affect delay sampling") {
+        NVAR nvar("test_nvar", 2, 2, 2);  // delay=2, strides=2
+        
+        Matrix x(5, 1);
+        x << 1.0, 2.0, 3.0, 4.0, 5.0;
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        // With strides=2, we sample every 2nd timestep for delays
+        // So at t=4 (5th sample), we use current (5.0) and t-2 (3.0), t-4 (1.0)
+        REQUIRE(output(4, 0) == 5.0);  // Current
+        REQUIRE(output(4, 1) == 3.0);  // t-2 (due to strides=2)
+    }
+}

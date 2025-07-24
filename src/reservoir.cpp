@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 namespace reservoircpp {
 
@@ -474,6 +475,193 @@ Matrix IntrinsicPlasticity::ip_activation(const Matrix& state) {
     // Apply IP transformation: f(a * state + b)
     Matrix transformed = a_.cwiseProduct(state) + b_;
     return activation_fn_(transformed);
+}
+
+// NVAR implementation
+NVAR::NVAR(const std::string& name, int delay, int order, int strides)
+    : Node(name), delay_(delay), order_(order), strides_(strides),
+      linear_dim_(0), nonlinear_dim_(0), nvar_initialized_(false) {
+    
+    if (delay <= 0) {
+        throw std::invalid_argument("Delay must be positive");
+    }
+    if (order <= 0) {
+        throw std::invalid_argument("Order must be positive");
+    }
+    if (strides <= 0) {
+        throw std::invalid_argument("Strides must be positive");
+    }
+}
+
+void NVAR::initialize(const Matrix* x, const Matrix* y) {
+    if (nvar_initialized_) {
+        return; // Already initialized
+    }
+    
+    if (x != nullptr) {
+        // For NVAR, input dimension is the number of features (columns)
+        int input_dim = static_cast<int>(x->cols());
+        set_input_dim({input_dim});
+        
+        // Compute dimensions
+        linear_dim_ = delay_ * input_dim;
+        nonlinear_dim_ = combinations_with_replacement(linear_dim_, order_);
+        int output_dim = linear_dim_ + nonlinear_dim_;
+        
+        set_output_dim({output_dim});
+        
+        // Initialize storage for delayed inputs
+        store_ = Matrix::Zero(delay_ * strides_, input_dim);
+        
+        // Generate monomial indices
+        monomial_indices_ = generate_monomial_indices(linear_dim_, order_);
+        
+        nvar_initialized_ = true;
+    } else {
+        throw std::runtime_error("Input data required for NVAR initialization");
+    }
+}
+
+void NVAR::do_initialize(const Matrix* x, const Matrix* y) {
+    // This is called by Node::initialize, but we've already done our initialization
+    // Just do nothing here since we handled everything in our initialize() method
+    (void)x; // Suppress unused parameter warning
+    (void)y;
+}
+
+void NVAR::reset(const Vector* state) {
+    if (nvar_initialized_) {
+        // Reset the input storage
+        store_.setZero();
+    }
+    
+    // NVAR doesn't have an internal state like reservoirs, so we just reset storage
+    (void)state; // NVAR doesn't use external state
+}
+
+Matrix NVAR::forward(const Matrix& x) {
+    if (!nvar_initialized_) {
+        throw std::runtime_error("NVAR must be initialized before forward pass");
+    }
+    
+    if (x.cols() != input_dim()[0]) {
+        throw std::invalid_argument("Input dimension mismatch");
+    }
+    
+    Matrix output(x.rows(), output_dim()[0]);
+    
+    for (int t = 0; t < x.rows(); ++t) {
+        Vector u = x.row(t).transpose();
+        
+        // Update storage: roll and add new input
+        // Roll storage down by 1 (move each row down)
+        for (int i = store_.rows() - 1; i > 0; --i) {
+            store_.row(i) = store_.row(i - 1);
+        }
+        store_.row(0) = u.transpose();
+        
+        // Extract linear features with strides
+        Vector linear_feats(linear_dim_);
+        int feat_idx = 0;
+        for (int d = 0; d < delay_; ++d) {
+            int store_idx = d * strides_;
+            if (store_idx < store_.rows()) {
+                for (int j = 0; j < input_dim()[0]; ++j) {
+                    linear_feats(feat_idx++) = store_(store_idx, j);
+                }
+            } else {
+                // Pad with zeros if we don't have enough history
+                for (int j = 0; j < input_dim()[0]; ++j) {
+                    linear_feats(feat_idx++) = 0.0;
+                }
+            }
+        }
+        
+        // Compute nonlinear features
+        Vector nonlinear_feats = compute_monomials(linear_feats);
+        
+        // Combine linear and nonlinear features
+        Vector combined_output(linear_dim_ + nonlinear_dim_);
+        combined_output.head(linear_dim_) = linear_feats;
+        combined_output.tail(nonlinear_dim_) = nonlinear_feats;
+        
+        output.row(t) = combined_output.transpose();
+    }
+    
+    return output;
+}
+
+std::shared_ptr<Node> NVAR::copy(const std::string& name) const {
+    auto copy = std::make_shared<NVAR>(name, delay_, order_, strides_);
+    
+    // Copy state if initialized
+    if (nvar_initialized_) {
+        copy->linear_dim_ = linear_dim_;
+        copy->nonlinear_dim_ = nonlinear_dim_;
+        copy->store_ = store_;
+        copy->monomial_indices_ = monomial_indices_;
+        copy->set_input_dim(input_dim());
+        copy->set_output_dim(output_dim());
+        copy->nvar_initialized_ = true;
+    }
+    
+    return copy;
+}
+
+int NVAR::combinations_with_replacement(int n, int k) {
+    // Compute C(n+k-1, k) = C(n+k-1, n-1)
+    if (k == 0) return 1;
+    if (n == 1) return 1;
+    
+    // Use formula: C(n,k) = n! / (k! * (n-k)!)
+    // For combinations with replacement: C(n+k-1, k)
+    long long result = 1;
+    int numerator = n + k - 1;
+    int denominator = std::min(k, numerator - k);
+    
+    for (int i = 0; i < denominator; ++i) {
+        result = result * (numerator - i) / (i + 1);
+    }
+    
+    return static_cast<int>(result);
+}
+
+std::vector<std::vector<int>> NVAR::generate_monomial_indices(int linear_dim, int order) {
+    std::vector<std::vector<int>> indices;
+    
+    // Generate all combinations with replacement of linear_dim elements taken order at a time
+    std::function<void(std::vector<int>&, int, int)> generate_combinations = 
+        [&](std::vector<int>& current, int start, int remaining) {
+            if (remaining == 0) {
+                indices.push_back(current);
+                return;
+            }
+            
+            for (int i = start; i < linear_dim; ++i) {
+                current.push_back(i);
+                generate_combinations(current, i, remaining - 1);
+                current.pop_back();
+            }
+        };
+    
+    std::vector<int> current;
+    generate_combinations(current, 0, order);
+    
+    return indices;
+}
+
+Vector NVAR::compute_monomials(const Vector& linear_feats) {
+    Vector monomials(nonlinear_dim_);
+    
+    for (size_t i = 0; i < monomial_indices_.size(); ++i) {
+        Float product = 1.0;
+        for (int idx : monomial_indices_[i]) {
+            product *= linear_feats(idx);
+        }
+        monomials(i) = product;
+    }
+    
+    return monomials;
 }
 
 } // namespace reservoircpp
