@@ -16,4 +16,16 @@ target_link_libraries(stage3_stage4_example reservoircpp)
 add_executable(stage5_example stage5_example.cpp)
 target_link_libraries(stage5_example reservoircpp)
 
+# Complete tutorial demonstrating full workflow (Stage 6)
+add_executable(complete_tutorial complete_tutorial.cpp)
+target_link_libraries(complete_tutorial reservoircpp)
+
+# Practical tutorial with safer examples (Stage 6)
+add_executable(practical_tutorial practical_tutorial.cpp)
+target_link_libraries(practical_tutorial reservoircpp)
+
+# Stage 6 tutorial - Examples and Documentation
+add_executable(stage6_tutorial stage6_tutorial.cpp)
+target_link_libraries(stage6_tutorial reservoircpp)
+
 message(STATUS "Building examples")

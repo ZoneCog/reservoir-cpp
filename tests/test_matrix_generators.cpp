@@ -113,7 +113,7 @@ TEST_CASE("Matrix generators - Spectral radius", "[matrix_generators]") {
 
 TEST_CASE("Matrix generators - Reservoir weights", "[matrix_generators]") {
     SECTION("Internal weights generation") {
-        Matrix W = generate_internal_weights(10, 0.1, 0.9);
+        Matrix W = generate_internal_weights(10, 0.5, 0.9);
         REQUIRE(W.rows() == 10);
         REQUIRE(W.cols() == 10);
         
