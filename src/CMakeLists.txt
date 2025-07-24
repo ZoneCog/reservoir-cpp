@@ -12,6 +12,8 @@ add_library(reservoircpp_core STATIC
     compat.cpp
     hyper.cpp
     plotting.cpp
+    benchmark.cpp
+    fuzz.cpp
     # gpu.cpp  # Temporarily disabled due to compilation issues
 )
 

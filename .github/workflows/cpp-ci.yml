@@ -1,0 +1,204 @@
+name: "C++ Build and Test"
+
+on:
+  push:
+    branches: [master, main, develop]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - '.github/workflows/cpp-ci.yml'
+
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - '.github/workflows/cpp-ci.yml'
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-and-test:
+    name: "Build and Test - ${{ matrix.os }} - ${{ matrix.compiler }}"
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-20.04, windows-2022, macos-12]
+        compiler: [gcc, clang]
+        exclude:
+          # Windows uses MSVC by default
+          - os: windows-2022
+            compiler: clang
+        include:
+          # Add MSVC for Windows
+          - os: windows-2022
+            compiler: msvc
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup C++ Environment (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev cmake ninja-build
+        if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+          sudo apt-get install -y clang
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        else
+          sudo apt-get install -y gcc g++
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+        fi
+
+    - name: Setup C++ Environment (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install eigen cmake ninja
+        if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        else
+          brew install gcc
+          echo "CC=gcc-13" >> $GITHUB_ENV
+          echo "CXX=g++-13" >> $GITHUB_ENV
+        fi
+
+    - name: Setup C++ Environment (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        vcpkg install eigen3:x64-windows
+        echo "CMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+    - name: Build
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+    - name: Run Tests
+      working-directory: build
+      run: ctest --output-on-failure --verbose
+
+    - name: Run Examples
+      if: runner.os != 'Windows'
+      working-directory: build/examples
+      run: |
+        echo "Testing Stage 6 Tutorial..."
+        ./stage6_tutorial
+        echo "Testing Simple Example..."
+        ./simple_example
+        echo "Testing Stage 2 Example..."
+        ./stage2_example
+
+  static-analysis:
+    name: "Static Analysis"
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy libeigen3-dev cmake
+
+    - name: Configure for analysis
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --inconclusive --xml --xml-version=2 \
+          --suppress=missingIncludeSystem \
+          --suppress=unusedFunction \
+          --project=build/compile_commands.json 2> cppcheck-report.xml || true
+
+    - name: Run clang-tidy
+      run: |
+        clang-tidy -p build --checks=-*,readability-*,performance-*,modernize-* \
+          $(find src include -name '*.cpp' -o -name '*.hpp') || true
+
+  memory-check:
+    name: "Memory Check with Valgrind"
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Valgrind and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind libeigen3-dev cmake
+
+    - name: Configure CMake for Debug
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+    - name: Build
+      run: cmake --build build --parallel
+
+    - name: Run Valgrind on tests
+      working-directory: build
+      run: |
+        valgrind --tool=memcheck --leak-check=full --track-origins=yes \
+          --error-exitcode=1 --show-leak-kinds=all \
+          ./tests/reservoircpp_tests
+
+    - name: Run Valgrind on examples
+      working-directory: build/examples
+      run: |
+        valgrind --tool=memcheck --leak-check=full --error-exitcode=1 \
+          ./simple_example
+
+  coverage:
+    name: "Coverage Analysis"
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev cmake gcov lcov
+
+    - name: Configure CMake with coverage
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
+          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage"
+
+    - name: Build
+      run: cmake --build build --parallel
+
+    - name: Run Tests
+      working-directory: build
+      run: ctest --output-on-failure
+
+    - name: Generate coverage
+      run: |
+        lcov --capture --directory build --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' --output-file coverage_filtered.info
+        lcov --list coverage_filtered.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage_filtered.info
+        flags: cpp
+        name: cpp-coverage

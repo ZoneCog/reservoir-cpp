@@ -54,4 +54,8 @@
 #include "reservoircpp/plotting.hpp"
 // #include "reservoircpp/gpu.hpp"  // Temporarily disabled
 
+// Stage 7: Testing and Quality Assurance 
+#include "reservoircpp/benchmark.hpp"
+#include "reservoircpp/fuzz.hpp"
+
 #endif // RESERVOIRCPP_HPP
