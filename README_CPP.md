@@ -8,7 +8,7 @@ ReservoirCpp is a modern C++17 port of the Python [ReservoirPy](https://github.c
 
 **This library is currently under active development.** We are following a multi-stage migration plan to port ReservoirPy from Python to C++.
 
-### Current Stage: Stage 5 - Ancillary and Advanced Features ✅
+### Current Stage: Stage 6 - Examples and Documentation ✅
 
 - ✅ Project structure setup
 - ✅ CMake build system
@@ -27,17 +27,23 @@ ReservoirCpp is a modern C++17 port of the Python [ReservoirPy](https://github.c
   - ✅ Hyperparameter optimization (RandomSearch, GridSearch, BayesianOptimization stubs)
   - ✅ Plotting utilities with Python export backend
   - ✅ GPU support framework (stub implementation)
+- ✅ **Stage 6: Examples and Documentation**
+  - ✅ Comprehensive tutorial examples demonstrating complete workflow
+  - ✅ Stage-specific examples (simple_example, stage2_example, etc.)
+  - ✅ Practical tutorials showing C++ API usage
+  - ✅ Feature demonstration examples
+  - ✅ Documentation examples for all major components
+  - ✅ Migration examples showing Python→C++ equivalents
 - ✅ Comprehensive test suite (65 tests passing)
 
 ### Upcoming Stages
 
-1. **Stage 6**: Examples and Documentation
-2. **Stage 7**: Testing and QA  
-3. **Stage 8**: Deployment and Packaging
+1. **Stage 7**: Testing and Quality Assurance
+2. **Stage 8**: Deployment and Packaging
 
 ## Features Implemented
 
-### Stages 1-5: Complete Reservoir Computing Framework ✅
+### Stages 1-6: Complete Reservoir Computing Framework with Examples ✅
 
 - **Type System**: Complete C++ equivalents of Python types with Eigen-based linear algebra
 - **Activation Functions**: Full set of activation functions with registry system
@@ -52,6 +58,7 @@ ReservoirCpp is a modern C++17 port of the Python [ReservoirPy](https://github.c
 - **Hyperparameter Optimization**: RandomSearch, GridSearch, BayesianOptimization frameworks
 - **Plotting Utilities**: Python-compatible plotting with export capabilities
 - **Compatibility Layer**: Model serialization and version management
+- **Examples and Documentation**: Comprehensive tutorials and examples demonstrating complete workflow
 - **Testing**: Comprehensive test suite with 65 test cases covering all functionality
 
 ### Example Usage
@@ -132,6 +139,32 @@ ctest -V
 ```
 
 Current test coverage: **65 test cases** covering all implemented functionality.
+
+## Examples and Tutorials
+
+The library includes comprehensive examples for different stages of implementation:
+
+```bash
+# Run the complete Stage 6 tutorial
+cd build/examples
+./stage6_tutorial
+
+# Run stage-specific examples
+./simple_example          # Stage 1 basics
+./stage2_example          # Core reservoir computing 
+./stage3_stage4_example   # Datasets and observables
+./stage5_example          # Advanced features
+./practical_tutorial      # Practical workflow demo
+```
+
+### Tutorial Coverage
+
+- **Data Generation**: Multiple chaotic time series (Mackey-Glass, Lorenz, Hénon)
+- **Activation Functions**: Complete showcase with registry usage
+- **Reservoir Computing**: Basic and ESN variants with configuration
+- **Performance Metrics**: MSE, RMSE, NRMSE, R² evaluation
+- **Advanced Features**: Experimental nodes, serialization, utilities
+- **Best Practices**: Complete workflow from data to evaluation
 
 ## License
 
