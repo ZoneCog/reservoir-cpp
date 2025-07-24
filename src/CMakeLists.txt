@@ -8,6 +8,11 @@ add_library(reservoircpp_core STATIC
     readout.cpp
     observables.cpp
     datasets.cpp
+    experimental.cpp
+    compat.cpp
+    hyper.cpp
+    plotting.cpp
+    # gpu.cpp  # Temporarily disabled due to compilation issues
 )
 
 # Set include directories

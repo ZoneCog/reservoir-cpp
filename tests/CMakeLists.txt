@@ -25,6 +25,7 @@ add_executable(reservoircpp_tests
     test_readout.cpp
     test_observables.cpp
     test_datasets.cpp
+    test_stage5.cpp
 )
 
 target_link_libraries(reservoircpp_tests 

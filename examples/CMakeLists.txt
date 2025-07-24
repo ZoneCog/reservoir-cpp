@@ -12,4 +12,8 @@ target_link_libraries(stage2_example reservoircpp)
 add_executable(stage3_stage4_example stage3_stage4_example.cpp)
 target_link_libraries(stage3_stage4_example reservoircpp)
 
+# Stage 5 example demonstrating advanced features
+add_executable(stage5_example stage5_example.cpp)
+target_link_libraries(stage5_example reservoircpp)
+
 message(STATUS "Building examples")
