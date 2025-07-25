@@ -364,6 +364,22 @@ protected:
     }
     
     /**
+     * @brief Virtual forward pass with feedback implementation
+     * 
+     * Subclasses can override this method to implement feedback handling.
+     * Default implementation ignores feedback and calls regular forward.
+     * 
+     * @param input Input matrix
+     * @param feedback_input Feedback input matrix
+     * @return Output matrix
+     */
+    virtual Matrix forward_with_feedback(const Matrix& input, const Matrix& feedback_input) {
+        // Default implementation: ignore feedback and use regular forward
+        (void)feedback_input; // Suppress unused parameter warning
+        return forward(input);
+    }
+    
+    /**
      * @brief Virtual initialization implementation
      * 
      * Subclasses should override this method to implement their specific initialization.
