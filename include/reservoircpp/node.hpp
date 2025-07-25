@@ -71,6 +71,8 @@ public:
         , input_dim_({})
         , output_dim_({})
         , state_()
+        , feedback_node_(nullptr)
+        , previous_feedback_output_()
         , dtype_(std::type_index(typeid(Float))) {
     }
     
@@ -91,7 +93,26 @@ public:
         if (!is_initialized_) {
             initialize(&input);
         }
-        return forward(input);
+        
+        // Handle feedback if present
+        if (has_feedback()) {
+            Matrix feedback_input;
+            if (previous_feedback_output_.size() > 0) {
+                feedback_input = previous_feedback_output_;
+            } else {
+                // First call - use zero feedback
+                feedback_input = Matrix::Zero(input.rows(), feedback_node_->get_output_size());
+            }
+            
+            Matrix result = forward_with_feedback(input, feedback_input);
+            
+            // Update feedback for next call
+            previous_feedback_output_ = result;
+            
+            return result;
+        } else {
+            return forward(input);
+        }
     }
     
     /**
@@ -386,6 +407,27 @@ protected:
      */
     const ParameterMap& get_hypers() const { return hypers_; }
 
+    /**
+     * @brief Set feedback node
+     * 
+     * @param feedback_node Node that provides feedback
+     */
+    void set_feedback(NodePtr feedback_node) { feedback_node_ = feedback_node; }
+    
+    /**
+     * @brief Get feedback node
+     * 
+     * @return Feedback node pointer (may be null)
+     */
+    NodePtr get_feedback() const { return feedback_node_; }
+    
+    /**
+     * @brief Check if node has feedback
+     * 
+     * @return true if feedback is configured
+     */
+    bool has_feedback() const { return feedback_node_ != nullptr; }
+
 private:
     std::string name_;
     ParameterMap params_;
@@ -395,6 +437,8 @@ private:
     Shape input_dim_;
     Shape output_dim_;
     Vector state_;
+    NodePtr feedback_node_;
+    Matrix previous_feedback_output_;
     std::type_index dtype_;
 };
 

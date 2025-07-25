@@ -1,5 +1,9 @@
 # Examples CMakeLists.txt
 
+# Ops example demonstrating new link, merge, and feedback operations (Iteration 11)
+add_executable(ops_example ops_example.cpp)
+target_link_libraries(ops_example PRIVATE reservoircpp)
+
 # Simple example demonstrating Stage 1 capabilities
 add_executable(simple_example simple_example.cpp)
 target_link_libraries(simple_example reservoircpp)

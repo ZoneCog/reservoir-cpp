@@ -35,6 +35,12 @@
 // Model class for computational graphs
 #include "reservoircpp/model.hpp"
 
+// Node operations - linking, feedback, merging
+#include "reservoircpp/ops.hpp"
+
+// Utility nodes
+#include "reservoircpp/concat.hpp"
+
 // Matrix generation utilities
 #include "reservoircpp/matrix_generators.hpp"
 
