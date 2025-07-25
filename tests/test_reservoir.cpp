@@ -262,3 +262,420 @@ TEST_CASE("Reservoir - Edge cases", "[reservoir]") {
         REQUIRE(output.cols() == 5);
     }
 }
+
+TEST_CASE("IntrinsicPlasticity - Basic construction", "[intrinsic_plasticity]") {
+    SECTION("Valid parameters with tanh") {
+        IntrinsicPlasticity ip("test_ip", 50, 1.0, 0.0, 1.0, 5e-4, 1, "tanh");
+        
+        REQUIRE(ip.name() == "test_ip");
+        REQUIRE(ip.units() == 50);
+        REQUIRE_THAT(ip.leak_rate(), Catch::Matchers::WithinAbs(1.0, 1e-10));
+        REQUIRE_THAT(ip.mu(), Catch::Matchers::WithinAbs(0.0, 1e-10));
+        REQUIRE_THAT(ip.sigma(), Catch::Matchers::WithinAbs(1.0, 1e-10));
+        REQUIRE_THAT(ip.learning_rate(), Catch::Matchers::WithinAbs(5e-4, 1e-10));
+        REQUIRE(ip.epochs() == 1);
+        REQUIRE(ip.activation_name() == "tanh");
+    }
+    
+    SECTION("Valid parameters with sigmoid") {
+        IntrinsicPlasticity ip("test_ip", 30, 0.8, 0.5, 0.5, 1e-3, 5, "sigmoid");
+        
+        REQUIRE(ip.name() == "test_ip");
+        REQUIRE(ip.units() == 30);
+        REQUIRE_THAT(ip.mu(), Catch::Matchers::WithinAbs(0.5, 1e-10));
+        REQUIRE(ip.epochs() == 5);
+        REQUIRE(ip.activation_name() == "sigmoid");
+    }
+    
+    SECTION("Invalid parameters") {
+        REQUIRE_THROWS_AS(IntrinsicPlasticity("test", 10, 1.0, 0.0, 1.0, 5e-4, 1, "relu"), 
+                         std::invalid_argument);
+        REQUIRE_THROWS_AS(IntrinsicPlasticity("test", 10, 1.0, 0.0, 1.0, -1e-4), 
+                         std::invalid_argument);
+        REQUIRE_THROWS_AS(IntrinsicPlasticity("test", 10, 1.0, 0.0, 1.0, 5e-4, 0), 
+                         std::invalid_argument);
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Initialization", "[intrinsic_plasticity]") {
+    SECTION("Initialize with input data") {
+        IntrinsicPlasticity ip("test_ip", 20);
+        
+        Matrix x(10, 3);  // 10 samples, 3 features
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        REQUIRE(ip.is_reservoir_initialized());
+        REQUIRE(ip.input_dim()[0] == 3);
+        REQUIRE(ip.output_dim()[0] == 20);
+        
+        // Check IP parameters are initialized correctly
+        REQUIRE(ip.a().rows() == 20);
+        REQUIRE(ip.a().cols() == 1);
+        REQUIRE(ip.b().rows() == 20);
+        REQUIRE(ip.b().cols() == 1);
+        
+        // Initial a should be ones, b should be zeros
+        REQUIRE(ip.a().isApprox(Matrix::Ones(20, 1), 1e-10));
+        REQUIRE(ip.b().cwiseAbs().sum() < 1e-10);
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Forward pass", "[intrinsic_plasticity]") {
+    SECTION("Forward pass produces valid output") {
+        IntrinsicPlasticity ip("test_ip", 10, 1.0, 0.0, 1.0, 5e-4, 1, "tanh");
+        
+        Matrix x(5, 2);  // 5 samples, 2 features
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        Matrix output = ip.forward(x);
+        
+        REQUIRE(output.rows() == 5);
+        REQUIRE(output.cols() == 10);
+        
+        // Output should be within tanh range
+        REQUIRE(output.cwiseAbs().maxCoeff() <= 1.0);
+    }
+    
+    SECTION("Forward pass with sigmoid activation") {
+        IntrinsicPlasticity ip("test_ip", 8, 1.0, 0.5, 1.0, 1e-3, 1, "sigmoid");
+        
+        Matrix x(3, 2);
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        Matrix output = ip.forward(x);
+        
+        REQUIRE(output.rows() == 3);
+        REQUIRE(output.cols() == 8);
+        
+        // Output should be in sigmoid range [0, 1]
+        REQUIRE(output.minCoeff() >= 0.0);
+        REQUIRE(output.maxCoeff() <= 1.0);
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Training functionality", "[intrinsic_plasticity]") {
+    SECTION("Partial fit changes IP parameters") {
+        IntrinsicPlasticity ip("test_ip", 5, 1.0, 0.0, 1.0, 1e-2, 1, "tanh");
+        
+        Matrix x(20, 2);  // Long sequence for training
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        // Store initial parameters
+        Matrix a_initial = ip.a();
+        Matrix b_initial = ip.b();
+        
+        // Train with partial fit
+        ip.partial_fit(x, 5);  // 5 warmup steps
+        
+        // Parameters should have changed
+        REQUIRE_FALSE(ip.a().isApprox(a_initial, 1e-3));
+        REQUIRE_FALSE(ip.b().isApprox(b_initial, 1e-3));
+    }
+    
+    SECTION("Fit with multiple sequences") {
+        IntrinsicPlasticity ip("test_ip", 8, 1.0, 0.0, 1.0, 5e-3, 2, "tanh");
+        
+        Matrix x1(15, 3);
+        Matrix x2(15, 3);
+        x1.setRandom();
+        x2.setRandom();
+        
+        std::vector<Matrix> sequences = {x1, x2};
+        
+        ip.initialize(&x1);
+        
+        // Store initial parameters
+        Matrix a_initial = ip.a();
+        Matrix b_initial = ip.b();
+        
+        // Train with multiple sequences and epochs
+        ip.fit(sequences, 3);  // 3 warmup steps
+        
+        // Parameters should have changed after training
+        REQUIRE_FALSE(ip.a().isApprox(a_initial, 1e-3));
+        REQUIRE_FALSE(ip.b().isApprox(b_initial, 1e-3));
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Copy functionality", "[intrinsic_plasticity]") {
+    SECTION("Copy IP reservoir") {
+        IntrinsicPlasticity ip("original", 12, 0.8, 0.2, 0.8, 1e-3, 3, "sigmoid");
+        
+        Matrix x(5, 4);
+        x.setRandom();
+        
+        ip.initialize(&x);
+        
+        auto copy = ip.copy("copy");
+        auto copy_ip = dynamic_cast<IntrinsicPlasticity*>(copy.get());
+        
+        REQUIRE(copy_ip != nullptr);
+        REQUIRE(copy_ip->name() == "copy");
+        REQUIRE(copy_ip->units() == 12);
+        REQUIRE(copy_ip->leak_rate() == 0.8);
+        REQUIRE(copy_ip->mu() == 0.2);
+        REQUIRE(copy_ip->sigma() == 0.8);
+        REQUIRE(copy_ip->learning_rate() == 1e-3);
+        REQUIRE(copy_ip->epochs() == 3);
+        REQUIRE(copy_ip->activation_name() == "sigmoid");
+        
+        // Check that IP parameters are copied
+        REQUIRE(copy_ip->a().isApprox(ip.a(), 1e-10));
+        REQUIRE(copy_ip->b().isApprox(ip.b(), 1e-10));
+    }
+}
+
+TEST_CASE("IntrinsicPlasticity - Parameter behavior", "[intrinsic_plasticity]") {
+    SECTION("IP parameters evolve during training") {
+        IntrinsicPlasticity ip("test_ip", 3, 1.0, 0.0, 1.0, 0.1, 1, "tanh");  // High learning rate for testing
+        
+        Matrix x(10, 1);
+        x.setConstant(0.5);  // Constant input
+        
+        ip.initialize(&x);
+        
+        // Store initial values
+        Matrix a_before = ip.a();
+        Matrix b_before = ip.b();
+        
+        // Train
+        ip.partial_fit(x, 2);
+        
+        // Values should change
+        Matrix a_after = ip.a();
+        Matrix b_after = ip.b();
+        
+        bool a_changed = !a_after.isApprox(a_before, 1e-6);
+        bool b_changed = !b_after.isApprox(b_before, 1e-6);
+        
+        REQUIRE((a_changed || b_changed));  // At least one parameter should change
+    }
+}
+
+TEST_CASE("NVAR - Basic construction", "[nvar]") {
+    SECTION("Valid parameters") {
+        NVAR nvar("test_nvar", 3, 2, 1);
+        
+        REQUIRE(nvar.name() == "test_nvar");
+        REQUIRE(nvar.delay() == 3);
+        REQUIRE(nvar.order() == 2);
+        REQUIRE(nvar.strides() == 1);
+    }
+    
+    SECTION("With strides") {
+        NVAR nvar("test_nvar", 5, 3, 2);
+        
+        REQUIRE(nvar.delay() == 5);
+        REQUIRE(nvar.order() == 3);
+        REQUIRE(nvar.strides() == 2);
+    }
+    
+    SECTION("Invalid parameters") {
+        REQUIRE_THROWS_AS(NVAR("test", 0, 2), std::invalid_argument);
+        REQUIRE_THROWS_AS(NVAR("test", 3, 0), std::invalid_argument);
+        REQUIRE_THROWS_AS(NVAR("test", 3, 2, 0), std::invalid_argument);
+    }
+}
+
+TEST_CASE("NVAR - Initialization", "[nvar]") {
+    SECTION("Initialize with input data") {
+        NVAR nvar("test_nvar", 2, 2);  // delay=2, order=2
+        
+        Matrix x(5, 3);  // 5 samples, 3 features
+        x.setRandom();
+        
+        nvar.initialize(&x);
+        
+        REQUIRE(nvar.input_dim()[0] == 3);
+        
+        // Linear dimension: delay * input_dim = 2 * 3 = 6
+        REQUIRE(nvar.linear_dim() == 6);
+        
+        // Nonlinear dimension: C(6+2-1, 2) = C(7, 2) = 21
+        REQUIRE(nvar.nonlinear_dim() == 21);
+        
+        // Total output dimension: 6 + 21 = 27
+        REQUIRE(nvar.output_dim()[0] == 27);
+        
+        // Storage should be initialized
+        REQUIRE(nvar.store().rows() == 2);  // delay * strides = 2 * 1
+        REQUIRE(nvar.store().cols() == 3);  // input_dim
+    }
+    
+    SECTION("Initialize with strides") {
+        NVAR nvar("test_nvar", 3, 2, 2);  // delay=3, order=2, strides=2
+        
+        Matrix x(5, 2);  // 5 samples, 2 features
+        x.setRandom();
+        
+        nvar.initialize(&x);
+        
+        // Linear dimension: delay * input_dim = 3 * 2 = 6
+        REQUIRE(nvar.linear_dim() == 6);
+        
+        // Storage rows: delay * strides = 3 * 2 = 6
+        REQUIRE(nvar.store().rows() == 6);
+        REQUIRE(nvar.store().cols() == 2);
+    }
+    
+    SECTION("Initialize without input data") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        REQUIRE_THROWS_AS(nvar.initialize(), std::runtime_error);
+    }
+}
+
+TEST_CASE("NVAR - Forward pass", "[nvar]") {
+    SECTION("Single timestep") {
+        NVAR nvar("test_nvar", 2, 2);  // delay=2, order=2
+        
+        Matrix x(1, 2);  // 1 sample, 2 features
+        x << 0.5, -0.3;
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        REQUIRE(output.rows() == 1);
+        REQUIRE(output.cols() == 14);  // 4 linear + 10 nonlinear features
+        
+        // First timestep with no history should have zeros for delayed features
+        // but current input should be present
+        REQUIRE(output(0, 0) == 0.5);   // First linear feature (current input)
+        REQUIRE(output(0, 1) == -0.3);  // Second linear feature (current input)
+        REQUIRE(output(0, 2) == 0.0);   // Third linear feature (t-1, should be 0)
+        REQUIRE(output(0, 3) == 0.0);   // Fourth linear feature (t-1, should be 0)
+    }
+    
+    SECTION("Multiple timesteps build history") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        Matrix x(3, 2);
+        x << 1.0, 2.0,   // t=0
+             3.0, 4.0,   // t=1
+             5.0, 6.0;   // t=2
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        REQUIRE(output.rows() == 3);
+        REQUIRE(output.cols() == 14);
+        
+        // At t=1, we should have history from t=0
+        REQUIRE(output(1, 0) == 3.0);  // Current input feature 1
+        REQUIRE(output(1, 1) == 4.0);  // Current input feature 2
+        REQUIRE(output(1, 2) == 1.0);  // t-1 input feature 1
+        REQUIRE(output(1, 3) == 2.0);  // t-1 input feature 2
+        
+        // At t=2, we should have full history
+        REQUIRE(output(2, 0) == 5.0);  // Current input feature 1
+        REQUIRE(output(2, 1) == 6.0);  // Current input feature 2
+        REQUIRE(output(2, 2) == 3.0);  // t-1 input feature 1
+        REQUIRE(output(2, 3) == 4.0);  // t-1 input feature 2
+    }
+    
+    SECTION("Nonlinear features are computed") {
+        NVAR nvar("test_nvar", 1, 2);  // Simple case: delay=1, order=2
+        
+        Matrix x(1, 2);
+        x << 2.0, 3.0;
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        // Linear features: [2.0, 3.0]
+        REQUIRE(output(0, 0) == 2.0);
+        REQUIRE(output(0, 1) == 3.0);
+        
+        // Nonlinear features (monomials of order 2):
+        // x1*x1, x1*x2, x2*x2 = 4.0, 6.0, 9.0
+        REQUIRE(output(0, 2) == 4.0);  // 2.0 * 2.0
+        REQUIRE(output(0, 3) == 6.0);  // 2.0 * 3.0
+        REQUIRE(output(0, 4) == 9.0);  // 3.0 * 3.0
+    }
+    
+    SECTION("Dimension mismatch") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        Matrix x_init(3, 2);
+        x_init.setRandom();
+        nvar.initialize(&x_init);
+        
+        Matrix x_wrong(3, 3);  // Wrong input dimension
+        x_wrong.setRandom();
+        
+        REQUIRE_THROWS_AS(nvar.forward(x_wrong), std::invalid_argument);
+    }
+}
+
+TEST_CASE("NVAR - Copy functionality", "[nvar]") {
+    SECTION("Copy NVAR node") {
+        NVAR nvar("original", 3, 2, 2);
+        
+        Matrix x(5, 4);
+        x.setRandom();
+        
+        nvar.initialize(&x);
+        
+        auto copy = nvar.copy("copy");
+        auto copy_nvar = dynamic_cast<NVAR*>(copy.get());
+        
+        REQUIRE(copy_nvar != nullptr);
+        REQUIRE(copy_nvar->name() == "copy");
+        REQUIRE(copy_nvar->delay() == 3);
+        REQUIRE(copy_nvar->order() == 2);
+        REQUIRE(copy_nvar->strides() == 2);
+        REQUIRE(copy_nvar->linear_dim() == nvar.linear_dim());
+        REQUIRE(copy_nvar->nonlinear_dim() == nvar.nonlinear_dim());
+        REQUIRE(copy_nvar->input_dim() == nvar.input_dim());
+        REQUIRE(copy_nvar->output_dim() == nvar.output_dim());
+    }
+}
+
+TEST_CASE("NVAR - Reset functionality", "[nvar]") {
+    SECTION("Reset clears history") {
+        NVAR nvar("test_nvar", 2, 2);
+        
+        Matrix x(3, 2);
+        x.setOnes();
+        
+        nvar.initialize(&x);
+        
+        // Run forward to build history
+        nvar.forward(x);
+        
+        // Reset should clear the storage
+        nvar.reset();
+        
+        // After reset, storage should be zero
+        REQUIRE(nvar.store().cwiseAbs().sum() < 1e-10);
+    }
+}
+
+TEST_CASE("NVAR - Strides functionality", "[nvar]") {
+    SECTION("Strides affect delay sampling") {
+        NVAR nvar("test_nvar", 2, 2, 2);  // delay=2, strides=2
+        
+        Matrix x(5, 1);
+        x << 1.0, 2.0, 3.0, 4.0, 5.0;
+        
+        nvar.initialize(&x);
+        
+        Matrix output = nvar.forward(x);
+        
+        // With strides=2, we sample every 2nd timestep for delays
+        // So at t=4 (5th sample), we use current (5.0) and t-2 (3.0), t-4 (1.0)
+        REQUIRE(output(4, 0) == 5.0);  // Current
+        REQUIRE(output(4, 1) == 3.0);  // t-2 (due to strides=2)
+    }
+}
