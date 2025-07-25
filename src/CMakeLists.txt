@@ -7,6 +7,8 @@ add_library(reservoircpp_core STATIC
     reservoir.cpp
     readout.cpp
     model.cpp
+    concat.cpp
+    ops.cpp
     observables.cpp
     datasets.cpp
     experimental.cpp
