@@ -32,6 +32,9 @@
 // Node base class
 #include "reservoircpp/node.hpp"
 
+// Model class for computational graphs
+#include "reservoircpp/model.hpp"
+
 // Matrix generation utilities
 #include "reservoircpp/matrix_generators.hpp"
 

@@ -40,4 +40,8 @@ target_link_libraries(intrinsic_plasticity_example reservoircpp)
 add_executable(nvar_example nvar_example.cpp)
 target_link_libraries(nvar_example reservoircpp)
 
+# Model example demonstrating Model class usage (Iteration 10)
+add_executable(model_example model_example.cpp)
+target_link_libraries(model_example reservoircpp)
+
 message(STATUS "Building examples")

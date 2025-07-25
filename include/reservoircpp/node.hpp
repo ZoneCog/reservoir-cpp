@@ -327,6 +327,18 @@ protected:
      */
     virtual Matrix forward(const Matrix& input) {
         // Default implementation: just return input (identity)
+        // Also set the state to the flattened version of the output
+        Vector new_state = Vector::Map(input.data(), input.size());
+        if (new_state.size() == get_output_size()) {
+            state_ = new_state;
+        } else if (get_output_size() > 0) {
+            // If sizes don't match, resize state appropriately
+            state_ = Vector::Zero(get_output_size());
+            int copy_size = std::min(new_state.size(), state_.size());
+            if (copy_size > 0) {
+                state_.head(copy_size) = new_state.head(copy_size);
+            }
+        }
         return input;
     }
     
@@ -339,9 +351,11 @@ protected:
      * @param y Output data
      */
     virtual void do_initialize(const Matrix* x, const Matrix* y) {
-        // Default implementation: do nothing
-        (void)x; // Suppress unused parameter warning
-        (void)y;
+        // Default implementation: set output dimensions to match input
+        if (x != nullptr && output_dim_.empty()) {
+            set_output_dim({static_cast<int>(x->rows()), static_cast<int>(x->cols())});
+        }
+        (void)y; // Suppress unused parameter warning
     }
     
     /**

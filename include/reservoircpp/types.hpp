@@ -53,8 +53,8 @@ using ParameterMap = std::unordered_map<std::string, std::any>;
 using ActivationFunction = std::function<Matrix(const Matrix&)>;
 
 // Forward declarations for node-related types
-class NodeBase;
-using NodePtr = shared_ptr<NodeBase>;
+class Node;
+using NodePtr = shared_ptr<Node>;
 
 /**
  * @brief Abstract base interface for all nodes in the computational graph

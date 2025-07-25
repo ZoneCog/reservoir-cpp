@@ -6,6 +6,7 @@ add_library(reservoircpp_core STATIC
     matrix_generators.cpp
     reservoir.cpp
     readout.cpp
+    model.cpp
     observables.cpp
     datasets.cpp
     experimental.cpp
