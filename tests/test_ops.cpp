@@ -247,6 +247,32 @@ TEST_CASE("Ops - Link feedback", "[ops][link_feedback]") {
         REQUIRE_THROWS_AS(ops::link_feedback(null_node, feedback_node), std::invalid_argument);
         REQUIRE_THROWS_AS(ops::link_feedback(main_node, null_node), std::invalid_argument);
     }
+    
+    SECTION("Feedback functionality verification") {
+        // Test that the feedback mechanism actually works in forward pass
+        Matrix input = Matrix::Random(5, 3);
+        
+        // Initialize nodes
+        main_node->initialize(&input);
+        feedback_node->initialize(&input);
+        
+        // Link feedback using inplace=true
+        auto result = ops::link_feedback(main_node, feedback_node, true);
+        
+        REQUIRE(result == main_node);
+        REQUIRE(result->has_feedback());
+        REQUIRE(result->get_feedback() == feedback_node);
+        
+        // Test forward pass works with feedback
+        auto output1 = result->operator()(input);
+        REQUIRE(output1.rows() == input.rows());
+        REQUIRE(output1.cols() == input.cols());
+        
+        // Test second forward pass (should use feedback from first call)
+        auto output2 = result->operator()(input);
+        REQUIRE(output2.rows() == input.rows());
+        REQUIRE(output2.cols() == input.cols());
+    }
 }
 
 TEST_CASE("Concat node", "[concat]") {

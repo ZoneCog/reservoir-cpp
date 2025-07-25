@@ -318,6 +318,27 @@ public:
     }
     
     /**
+     * @brief Set feedback node
+     * 
+     * @param feedback_node Node that provides feedback
+     */
+    void set_feedback(NodePtr feedback_node) { feedback_node_ = feedback_node; }
+    
+    /**
+     * @brief Get feedback node
+     * 
+     * @return Feedback node pointer (may be null)
+     */
+    NodePtr get_feedback() const { return feedback_node_; }
+    
+    /**
+     * @brief Check if node has feedback
+     * 
+     * @return true if feedback is configured
+     */
+    bool has_feedback() const { return feedback_node_ != nullptr; }
+    
+    /**
      * @brief Copy the node
      * 
      * @param new_name New name for the copy (empty to generate unique name)
@@ -422,27 +443,6 @@ protected:
      * @return Const reference to hyperparameters map
      */
     const ParameterMap& get_hypers() const { return hypers_; }
-
-    /**
-     * @brief Set feedback node
-     * 
-     * @param feedback_node Node that provides feedback
-     */
-    void set_feedback(NodePtr feedback_node) { feedback_node_ = feedback_node; }
-    
-    /**
-     * @brief Get feedback node
-     * 
-     * @return Feedback node pointer (may be null)
-     */
-    NodePtr get_feedback() const { return feedback_node_; }
-    
-    /**
-     * @brief Check if node has feedback
-     * 
-     * @return true if feedback is configured
-     */
-    bool has_feedback() const { return feedback_node_ != nullptr; }
 
 private:
     std::string name_;
