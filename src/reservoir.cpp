@@ -428,16 +428,16 @@ void IntrinsicPlasticity::update_ip_parameters(const Matrix& pre_state, const Ma
     std::pair<Matrix, Matrix> gradients;
     
     if (activation_name_ == "tanh") {
-        gradients = gaussian_gradients(pre_state.transpose(), post_state.transpose(),
+        gradients = gaussian_gradients(pre_state, post_state,
                                      a_, mu_, sigma_, learning_rate_);
     } else { // sigmoid
-        gradients = exp_gradients(pre_state.transpose(), post_state.transpose(),
+        gradients = exp_gradients(pre_state, post_state,
                                 a_, mu_, learning_rate_);
     }
     
     // Apply gradients
-    a_ += gradients.first.transpose();
-    b_ += gradients.second.transpose();
+    a_ += gradients.first;
+    b_ += gradients.second;
 }
 
 std::pair<Matrix, Matrix> IntrinsicPlasticity::gaussian_gradients(const Matrix& x, const Matrix& y,

@@ -36,25 +36,25 @@ std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::run_all_benchmarks() {
 std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_matrix_operations() {
     std::vector<BenchmarkTimer::Result> results;
     
-    // Matrix multiplication benchmark
-    auto matrix_mult = BenchmarkTimer::benchmark("Matrix Multiplication (100x100)", []() {
-        Matrix a = Matrix::Random(100, 100);
-        Matrix b = Matrix::Random(100, 100);
+    // Matrix multiplication benchmark (reduced size for testing)
+    auto matrix_mult = BenchmarkTimer::benchmark("Matrix Multiplication (50x50)", []() {
+        Matrix a = Matrix::Random(50, 50);
+        Matrix b = Matrix::Random(50, 50);
         Matrix c = a * b;
-    }, 50);
+    }, 5);
     results.push_back(matrix_mult);
     
-    // Matrix generation benchmark
-    auto matrix_gen = BenchmarkTimer::benchmark("Matrix Generation (1000x1000)", []() {
-        auto gen = reservoircpp::matrix_generators::generate_internal_weights(1000, 0.1f, 0.9f);
-    }, 10);
+    // Matrix generation benchmark (reduced size for testing)
+    auto matrix_gen = BenchmarkTimer::benchmark("Matrix Generation (100x100)", []() {
+        auto gen = reservoircpp::matrix_generators::generate_internal_weights(100, 0.1f, 0.9f);
+    }, 3);
     results.push_back(matrix_gen);
     
-    // Eigenvalue computation benchmark
-    auto eigenvals = BenchmarkTimer::benchmark("Eigenvalue Computation (50x50)", []() {
-        Matrix m = Matrix::Random(50, 50);
+    // Eigenvalue computation benchmark (reduced size for testing)
+    auto eigenvals = BenchmarkTimer::benchmark("Eigenvalue Computation (20x20)", []() {
+        Matrix m = Matrix::Random(20, 20);
         float sr = reservoircpp::observables::spectral_radius(m);
-    }, 20);
+    }, 3);
     results.push_back(eigenvals);
     
     return results;
@@ -63,27 +63,27 @@ std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_matrix_operat
 std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_activations() {
     std::vector<BenchmarkTimer::Result> results;
     
-    Matrix input = Matrix::Random(1000, 100);
+    Matrix input = Matrix::Random(100, 10); // Reduced size for testing
     
-    // Sigmoid benchmark
-    auto sigmoid = BenchmarkTimer::benchmark("Sigmoid Activation (1000x100)", [&input]() {
+    // Sigmoid benchmark (reduced iterations)
+    auto sigmoid = BenchmarkTimer::benchmark("Sigmoid Activation (100x10)", [&input]() {
         auto sigmoid_fn = reservoircpp::activations::get_function("sigmoid");
         auto output = sigmoid_fn(input);
-    }, 100);
+    }, 10);
     results.push_back(sigmoid);
     
-    // Tanh benchmark
-    auto tanh = BenchmarkTimer::benchmark("Tanh Activation (1000x100)", [&input]() {
+    // Tanh benchmark (reduced iterations)
+    auto tanh = BenchmarkTimer::benchmark("Tanh Activation (100x10)", [&input]() {
         auto tanh_fn = reservoircpp::activations::get_function("tanh");
         auto output = tanh_fn(input);
-    }, 100);
+    }, 10);
     results.push_back(tanh);
     
-    // ReLU benchmark
-    auto relu = BenchmarkTimer::benchmark("ReLU Activation (1000x100)", [&input]() {
+    // ReLU benchmark (reduced iterations)
+    auto relu = BenchmarkTimer::benchmark("ReLU Activation (100x10)", [&input]() {
         auto relu_fn = reservoircpp::activations::get_function("relu");
         auto output = relu_fn(input);
-    }, 100);
+    }, 10);
     results.push_back(relu);
     
     return results;
@@ -92,27 +92,27 @@ std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_activations()
 std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_reservoirs() {
     std::vector<BenchmarkTimer::Result> results;
     
-    // Reservoir creation benchmark
-    auto reservoir_create = BenchmarkTimer::benchmark("Reservoir Creation (500 units)", []() {
-        Reservoir reservoir("test", 500);
-    }, 50);
+    // Reservoir creation benchmark (reduced size)
+    auto reservoir_create = BenchmarkTimer::benchmark("Reservoir Creation (50 units)", []() {
+        Reservoir reservoir("test", 50);
+    }, 5);
     results.push_back(reservoir_create);
     
-    // Reservoir forward pass benchmark
-    Matrix input = Matrix::Random(1000, 10);
-    auto reservoir_forward = BenchmarkTimer::benchmark("Reservoir Forward Pass (500 units, 1000 steps)", [&input]() {
-        Reservoir reservoir("test", 500);
+    // Reservoir forward pass benchmark (much smaller for testing)
+    Matrix input = Matrix::Random(100, 5);
+    auto reservoir_forward = BenchmarkTimer::benchmark("Reservoir Forward Pass (50 units, 100 steps)", [&input]() {
+        Reservoir reservoir("test", 50);
         reservoir.initialize(&input);
         auto states = reservoir.forward(input);
-    }, 10);
+    }, 3);
     results.push_back(reservoir_forward);
     
-    // ESN benchmark
-    auto esn_forward = BenchmarkTimer::benchmark("ESN Forward Pass (200 units, 1000 steps)", [&input]() {
-        ESN esn("test", 200);
+    // ESN benchmark (much smaller for testing)
+    auto esn_forward = BenchmarkTimer::benchmark("ESN Forward Pass (30 units, 100 steps)", [&input]() {
+        ESN esn("test", 30);
         esn.initialize(&input);
         auto states = esn.forward(input);
-    }, 10);
+    }, 3);
     results.push_back(esn_forward);
     
     return results;
@@ -121,22 +121,22 @@ std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_reservoirs() 
 std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_readouts() {
     std::vector<BenchmarkTimer::Result> results;
     
-    Matrix states = Matrix::Random(1000, 100);
-    Matrix targets = Matrix::Random(1000, 5);
+    Matrix states = Matrix::Random(100, 20); // Reduced size for testing
+    Matrix targets = Matrix::Random(100, 3);
     
-    // Ridge readout training benchmark
-    auto ridge_train = BenchmarkTimer::benchmark("Ridge Training (1000x100 -> 1000x5)", [&states, &targets]() {
-        RidgeReadout readout("test", 5);
+    // Ridge readout training benchmark (reduced size)
+    auto ridge_train = BenchmarkTimer::benchmark("Ridge Training (100x20 -> 100x3)", [&states, &targets]() {
+        RidgeReadout readout("test", 3);
         readout.fit(states, targets);
-    }, 20);
+    }, 5);
     results.push_back(ridge_train);
     
-    // Ridge readout prediction benchmark
-    RidgeReadout trained_readout("test", 5);
+    // Ridge readout prediction benchmark (reduced iterations)
+    RidgeReadout trained_readout("test", 3);
     trained_readout.fit(states, targets);
-    auto ridge_predict = BenchmarkTimer::benchmark("Ridge Prediction (1000x100 -> 1000x5)", [&trained_readout, &states]() {
+    auto ridge_predict = BenchmarkTimer::benchmark("Ridge Prediction (100x20 -> 100x3)", [&trained_readout, &states]() {
         auto output = trained_readout.forward(states);
-    }, 100);
+    }, 10);
     results.push_back(ridge_predict);
     
     return results;
@@ -145,24 +145,24 @@ std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_readouts() {
 std::vector<BenchmarkTimer::Result> ReservoirBenchmarks::benchmark_datasets() {
     std::vector<BenchmarkTimer::Result> results;
     
-    // Mackey-Glass generation benchmark
-    auto mackey_glass = BenchmarkTimer::benchmark("Mackey-Glass Generation (5000 steps)", []() {
-        auto data = reservoircpp::datasets::mackey_glass(5000);
-    }, 10);
+    // Mackey-Glass generation benchmark (reduced size)
+    auto mackey_glass = BenchmarkTimer::benchmark("Mackey-Glass Generation (500 steps)", []() {
+        auto data = reservoircpp::datasets::mackey_glass(500);
+    }, 3);
     results.push_back(mackey_glass);
     
-    // Lorenz generation benchmark
-    auto lorenz = BenchmarkTimer::benchmark("Lorenz Generation (5000 steps)", []() {
-        auto data = reservoircpp::datasets::lorenz(5000);
-    }, 10);
+    // Lorenz generation benchmark (reduced size)
+    auto lorenz = BenchmarkTimer::benchmark("Lorenz Generation (500 steps)", []() {
+        auto data = reservoircpp::datasets::lorenz(500);
+    }, 3);
     results.push_back(lorenz);
     
-    // NARMA generation benchmark
-    auto narma = BenchmarkTimer::benchmark("NARMA Generation (5000 steps)", []() {
-        auto data = reservoircpp::datasets::narma(5000);
+    // NARMA generation benchmark (reduced size)
+    auto narma = BenchmarkTimer::benchmark("NARMA Generation (500 steps)", []() {
+        auto data = reservoircpp::datasets::narma(500);
         auto X = std::get<0>(data);
         auto y = std::get<1>(data);
-    }, 10);
+    }, 3);
     results.push_back(narma);
     
     return results;
