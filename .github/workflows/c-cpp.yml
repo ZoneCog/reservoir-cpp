@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: c/c++ ci
 
 on:
   push:
@@ -23,7 +23,9 @@ jobs:
   #      run: ./configure
       - name: make
         run: cd build && make
-      - name: make check
-        run: make check
-      - name: make distcheck
-        run: make distcheck
+
+      - name: make tests
+        run: make tests
+
+      - name: sudo make install
+        run: sudo make install
