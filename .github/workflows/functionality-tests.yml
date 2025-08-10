@@ -33,6 +33,8 @@ jobs:
   functionality-verification:
     name: "Python to C++ Functionality Verification"
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     
     outputs:
       verification-result: ${{ steps.verify.outputs.result }}
