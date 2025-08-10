@@ -1,0 +1,428 @@
+name: "Functionality Tests and Issue Management"
+
+on:
+  push:
+    branches: [master, main, develop]
+    paths:
+      - 'include/**'
+      - 'src/**'
+      - 'TO_REMOVE/reservoirpy/**'
+      - 'TO_REMOVE/detailed_verification.py'
+      - '.github/workflows/functionality-tests.yml'
+  
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'include/**'
+      - 'src/**'
+      - 'TO_REMOVE/reservoirpy/**'
+      - 'TO_REMOVE/detailed_verification.py'
+      - '.github/workflows/functionality-tests.yml'
+  
+  schedule:
+    # Run daily at 6 AM UTC to track progress
+    - cron: '0 6 * * *'
+  
+  workflow_dispatch:
+    # Allow manual triggering
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  functionality-verification:
+    name: "Python to C++ Functionality Verification"
+    runs-on: ubuntu-22.04
+    
+    outputs:
+      verification-result: ${{ steps.verify.outputs.result }}
+      missing-functions: ${{ steps.verify.outputs.missing-functions }}
+      missing-classes: ${{ steps.verify.outputs.missing-classes }}
+      total-missing: ${{ steps.verify.outputs.total-missing }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+
+    - name: Run functionality verification
+      id: verify
+      run: |
+        echo "Running detailed verification..."
+        
+        # Create the verification script
+        cat > verify_functionality.py << 'EOF'
+        import sys, json, subprocess
+        from pathlib import Path
+        from datetime import datetime
+
+        def analyze_python_module(py_file):
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                functions, classes = [], []
+                for line in content.split('\n'):
+                    line = line.strip()
+                    if line.startswith('def ') and not line.startswith('def _'):
+                        func_name = line.split('(')[0].replace('def ', '')
+                        functions.append(func_name)
+                    elif line.startswith('class '):
+                        class_name = line.split('(')[0].split(':')[0].replace('class ', '')
+                        classes.append(class_name)
+                return {'functions': functions, 'classes': classes, 'path': str(py_file)}
+            except Exception as e:
+                return {'functions': [], 'classes': [], 'path': str(py_file), 'error': str(e)}
+
+        def check_cpp_equivalent(item_name, cpp_headers_dir, cpp_src_dir):
+            for root in [cpp_headers_dir, cpp_src_dir]:
+                if Path(root).exists():
+                    for ext in ['*.hpp', '*.cpp']:
+                        for file in Path(root).rglob(ext):
+                            try:
+                                with open(file, 'r', encoding='utf-8') as f:
+                                    if item_name.lower() in f.read().lower():
+                                        return True, f"Found in {file.relative_to(Path(root).parent)}"
+                            except:
+                                continue
+            return False, "NOT FOUND"
+
+        def main():
+            base_dir = Path('.')
+            reservoirpy_dir = base_dir / 'TO_REMOVE' / 'reservoirpy'
+            cpp_headers_dir = base_dir / 'include'
+            cpp_src_dir = base_dir / 'src'
+            
+            print("=== Detailed Python to C++ Functionality Verification ===")
+            print(f"{datetime.now()}")
+            
+            core_modules = ['activationsfunc.py', 'mat_gen.py', 'node.py', 'model.py', 'ops.py', 'observables.py', 'type.py']
+            verification_results = {}
+            missing_items = {'functions': [], 'classes': []}
+            
+            print("\n## Core Module Analysis")
+            print("=" * 50)
+            
+            for module in core_modules:
+                module_path = reservoirpy_dir / module
+                if module_path.exists():
+                    print(f"\n### Analyzing {module}")
+                    analysis = analyze_python_module(module_path)
+                    
+                    if 'error' in analysis:
+                        print(f"❌ Error analyzing {module}: {analysis['error']}")
+                        continue
+                    
+                    print(f"Found {len(analysis['functions'])} functions and {len(analysis['classes'])} classes")
+                    
+                    function_results = []
+                    for func in analysis['functions']:
+                        has_cpp, location = check_cpp_equivalent(func, cpp_headers_dir, cpp_src_dir)
+                        function_results.append((func, has_cpp, location))
+                        status = '✅' if has_cpp else '❌'
+                        print(f"  Function '{func}': {status} {location}")
+                        if not has_cpp:
+                            missing_items['functions'].append({'name': func, 'module': module})
+                    
+                    class_results = []
+                    for cls in analysis['classes']:
+                        has_cpp, location = check_cpp_equivalent(cls, cpp_headers_dir, cpp_src_dir)
+                        class_results.append((cls, has_cpp, location))
+                        status = '✅' if has_cpp else '❌'
+                        print(f"  Class '{cls}': {status} {location}")
+                        if not has_cpp:
+                            missing_items['classes'].append({'name': cls, 'module': module})
+                    
+                    verification_results[module] = {'functions': function_results, 'classes': class_results}
+            
+            # Node types analysis
+            print("\n## Node Types Analysis")
+            print("=" * 50)
+            nodes_dir = reservoirpy_dir / 'nodes'
+            if nodes_dir.exists():
+                for py_file in list(nodes_dir.rglob('*.py'))[:10]:
+                    if py_file.name not in ['__init__.py'] and not py_file.name.startswith('test'):
+                        print(f"\n### Analyzing {py_file.relative_to(reservoirpy_dir)}")
+                        analysis = analyze_python_module(py_file)
+                        if 'error' not in analysis:
+                            print(f"Found {len(analysis['functions'])} functions and {len(analysis['classes'])} classes")
+                            for cls in analysis['classes']:
+                                has_cpp, location = check_cpp_equivalent(cls, cpp_headers_dir, cpp_src_dir)
+                                status = '✅' if has_cpp else '❌'
+                                print(f"  Class '{cls}': {status} {location}")
+                                if not has_cpp:
+                                    missing_items['classes'].append({'name': cls, 'module': str(py_file.relative_to(reservoirpy_dir))})
+            
+            # Summary
+            print("\n## Summary")
+            print("=" * 50)
+            
+            total_functions = sum(len(result['functions']) for result in verification_results.values())
+            implemented_functions = sum(1 for result in verification_results.values() 
+                                      for func, has_cpp, _ in result['functions'] if has_cpp)
+            
+            total_classes = sum(len(result['classes']) for result in verification_results.values())
+            implemented_classes = sum(1 for result in verification_results.values()
+                                    for cls, has_cpp, _ in result['classes'] if has_cpp)
+            
+            print(f"Functions: {implemented_functions}/{total_functions} implemented")
+            print(f"Classes: {implemented_classes}/{total_classes} implemented")
+            print(f"Overall: {implemented_functions + implemented_classes}/{total_functions + total_classes}")
+            
+            # Output for GitHub Actions
+            total_missing = len(missing_items['functions']) + len(missing_items['classes'])
+            coverage_percentage = ((implemented_functions + implemented_classes) / (total_functions + total_classes) * 100) if (total_functions + total_classes) > 0 else 100
+            
+            print(f"\n📊 Coverage: {coverage_percentage:.1f}%")
+            print(f"📋 Missing items: {total_missing}")
+            
+            # Write outputs for GitHub Actions
+            with open('missing_functions.json', 'w') as f:
+                json.dump(missing_items['functions'], f)
+            with open('missing_classes.json', 'w') as f:
+                json.dump(missing_items['classes'], f)
+            
+            # Exit with appropriate code
+            success = coverage_percentage >= 90.0
+            if success:
+                print("\n🎉 High confidence: Most functionality is implemented in C++!")
+                return True
+            else:
+                print("\n⚠️  Some significant functionality may be missing.")
+                return False
+
+        if __name__ == "__main__":
+            success = main()
+            sys.exit(0 if success else 1)
+        EOF
+        
+        # Run the verification
+        python verify_functionality.py
+        VERIFICATION_RESULT=$?
+        
+        # Set outputs for subsequent jobs
+        echo "result=$VERIFICATION_RESULT" >> $GITHUB_OUTPUT
+        
+        # Read missing items and set outputs
+        if [[ -f "missing_functions.json" ]]; then
+          echo "missing-functions<<EOF" >> $GITHUB_OUTPUT
+          cat missing_functions.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "missing-functions=[]" >> $GITHUB_OUTPUT
+        fi
+        
+        if [[ -f "missing_classes.json" ]]; then
+          echo "missing-classes<<EOF" >> $GITHUB_OUTPUT
+          cat missing_classes.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "missing-classes=[]" >> $GITHUB_OUTPUT
+        fi
+        
+        # Count total missing items
+        TOTAL_MISSING=0
+        if [[ -f "missing_functions.json" ]]; then
+          FUNC_COUNT=$(python3 -c "import json; print(len(json.load(open('missing_functions.json'))))")
+          TOTAL_MISSING=$((TOTAL_MISSING + FUNC_COUNT))
+        fi
+        if [[ -f "missing_classes.json" ]]; then
+          CLASS_COUNT=$(python3 -c "import json; print(len(json.load(open('missing_classes.json'))))")
+          TOTAL_MISSING=$((TOTAL_MISSING + CLASS_COUNT))
+        fi
+        echo "total-missing=$TOTAL_MISSING" >> $GITHUB_OUTPUT
+        
+        echo "📊 Verification completed with $TOTAL_MISSING missing items"
+
+    - name: Upload verification artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: functionality-verification-results
+        path: |
+          missing_functions.json
+          missing_classes.json
+        retention-days: 30
+
+  manage-issues:
+    name: "Create/Update GitHub Issues for Missing Functionality"
+    runs-on: ubuntu-22.04
+    needs: functionality-verification
+    if: always() && needs.functionality-verification.outputs.total-missing != '0'
+    
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download verification results
+      uses: actions/download-artifact@v4
+      with:
+        name: functionality-verification-results
+
+    - name: Create/Update Issues for Missing Functions
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Creating/updating issues for missing functionality..."
+        
+        # Create issue management script
+        cat > manage_issues.py << 'EOF'
+        import json, subprocess, sys
+        from datetime import datetime
+
+        def run_gh_command(cmd):
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+                return result.stdout.strip()
+            except subprocess.CalledProcessError as e:
+                print(f"Error running command: {cmd}")
+                print(f"Error: {e.stderr}")
+                return None
+
+        def create_or_update_issue(title, body, labels):
+            # Check if issue already exists
+            search_cmd = f'gh issue list --search "in:title {title}" --json number,title,state'
+            existing = run_gh_command(search_cmd)
+            
+            if existing and existing != "[]":
+                issues = json.loads(existing)
+                for issue in issues:
+                    if issue['title'] == title and issue['state'] == 'open':
+                        # Update existing issue
+                        update_cmd = f'gh issue edit {issue["number"]} --body "{body}"'
+                        print(f"Updating existing issue #{issue['number']}: {title}")
+                        run_gh_command(update_cmd)
+                        return
+            
+            # Create new issue
+            create_cmd = f'gh issue create --title "{title}" --body "{body}" --label "{",".join(labels)}"'
+            print(f"Creating new issue: {title}")
+            run_gh_command(create_cmd)
+
+        # Load missing items
+        try:
+            with open('missing_functions.json', 'r') as f:
+                missing_functions = json.load(f)
+        except:
+            missing_functions = []
+
+        try:
+            with open('missing_classes.json', 'r') as f:
+                missing_classes = json.load(f)
+        except:
+            missing_classes = []
+
+        # Create overview issue
+        total_missing = len(missing_functions) + len(missing_classes)
+        overview_title = f"Missing Python to C++ Implementation - {total_missing} items ({datetime.now().strftime('%Y-%m-%d')})"
+        
+        overview_body = f"# Missing Python to C++ Implementation Status\\n\\n"
+        overview_body += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\\n"
+        overview_body += f"Total Missing Items: {total_missing}\\n\\n"
+        overview_body += f"## Summary\\n"
+        overview_body += f"- Missing Functions: {len(missing_functions)}\\n"
+        overview_body += f"- Missing Classes: {len(missing_classes)}\\n\\n"
+        overview_body += f"## Missing Functions ({len(missing_functions)})\\n"
+        
+        for func in missing_functions:
+            overview_body += f"- `{func['name']}` (from `{func['module']}`)\\n"
+        
+        overview_body += f"\\n## Missing Classes ({len(missing_classes)})\\n"
+        for cls in missing_classes:
+            overview_body += f"- `{cls['name']}` (from `{cls['module']}`)\\n"
+        
+        overview_body += f"\\n## Next Steps\\n"
+        overview_body += f"1. High Priority: Implement missing core functions and classes\\n"
+        overview_body += f"2. Medium Priority: Add missing buffer management functions\\n"
+        overview_body += f"3. Low Priority: Add convenience functions and edge case handling\\n\\n"
+        overview_body += f"## Tracking\\n"
+        overview_body += f"This issue is automatically updated daily. Individual implementation issues are created for each missing item.\\n\\n"
+        overview_body += f"Related Issues: Search for label `missing-implementation`"
+
+        create_or_update_issue(overview_title, overview_body, ["enhancement", "missing-implementation", "auto-generated"])
+
+        # Create individual issues for high-priority missing functions
+        high_priority_functions = ['vect_wrapper', 'rvs', 'data_rvs', 'feedback_dim', 'is_trained_offline', 'is_trained_online', 'unsupervised', 'concat_multi_inputs']
+
+        for func in missing_functions:
+            if func['name'] in high_priority_functions:
+                title = f"Implement missing function: {func['name']}"
+                body = f"# Missing Function Implementation: `{func['name']}`\\n\\n"
+                body += f"Source Module: `{func['module']}`\\n"
+                body += f"Priority: High\\n"
+                body += f"Type: Function\\n\\n"
+                body += f"## Description\\n"
+                body += f"The function `{func['name']}` from the Python module `{func['module']}` is not implemented in the C++ codebase.\\n\\n"
+                body += f"## Expected Implementation\\n"
+                body += f"Please analyze the Python implementation in `TO_REMOVE/reservoirpy/{func['module']}` and create the corresponding C++ implementation.\\n\\n"
+                body += f"## Acceptance Criteria\\n"
+                body += f"- [ ] Function implemented in appropriate C++ header/source file\\n"
+                body += f"- [ ] Unit tests added for the function\\n"
+                body += f"- [ ] Documentation updated if necessary\\n"
+                body += f"- [ ] Functionality verification passes\\n\\n"
+                body += f"Auto-generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                
+                create_or_update_issue(title, body, ["enhancement", "missing-implementation", "high-priority", "function"])
+
+        # Create individual issues for missing classes
+        for cls in missing_classes:
+            title = f"Implement missing class: {cls['name']}"
+            body = f"# Missing Class Implementation: `{cls['name']}`\\n\\n"
+            body += f"Source Module: `{cls['module']}`\\n"
+            body += f"Priority: Medium\\n"
+            body += f"Type: Class\\n\\n"
+            body += f"## Description\\n"
+            body += f"The class `{cls['name']}` from the Python module `{cls['module']}` is not implemented in the C++ codebase.\\n\\n"
+            body += f"## Expected Implementation\\n"
+            body += f"Please analyze the Python implementation in `TO_REMOVE/reservoirpy/{cls['module']}` and create the corresponding C++ implementation.\\n\\n"
+            body += f"## Acceptance Criteria\\n"
+            body += f"- [ ] Class implemented in appropriate C++ header/source file\\n"
+            body += f"- [ ] All class methods implemented\\n"
+            body += f"- [ ] Unit tests added for the class\\n"
+            body += f"- [ ] Documentation updated if necessary\\n"
+            body += f"- [ ] Functionality verification passes\\n\\n"
+            body += f"Auto-generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            
+            create_or_update_issue(title, body, ["enhancement", "missing-implementation", "medium-priority", "class"])
+
+        print(f"Issue management completed. Processed {total_missing} missing items.")
+        EOF
+        
+        python manage_issues.py
+
+  report-status:
+    name: "Report Functionality Test Status"
+    runs-on: ubuntu-22.04
+    needs: [functionality-verification, manage-issues]
+    if: always()
+    
+    steps:
+    - name: Report Success
+      if: needs.functionality-verification.outputs.result == '0'
+      run: |
+        echo "🎉 Functionality verification PASSED!"
+        echo "Most Python functionality has been successfully implemented in C++."
+        
+    - name: Report Issues
+      if: needs.functionality-verification.outputs.result != '0'
+      run: |
+        echo "⚠️ Functionality verification FAILED!"
+        echo "Missing items: ${{ needs.functionality-verification.outputs.total-missing }}"
+        echo "GitHub issues have been created/updated to track missing implementations."
+        
+    - name: Set workflow status
+      if: needs.functionality-verification.outputs.result != '0'
+      run: |
+        echo "Failing workflow due to missing functionality"
+        exit 1
