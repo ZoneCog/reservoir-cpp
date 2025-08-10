@@ -40,6 +40,8 @@ cmake -DBUILD_HEADER_ONLY=ON ..
 make install
 ```
 
+**Note:** The `make install` command must be run from the `build/` directory after running CMake, as it requires the generated Makefiles with the install target.
+
 This installs only headers and makes the library available through CMake `find_package`.
 
 ### 2. Compiled Library (Recommended for Production)
@@ -54,6 +56,8 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j$(nproc)
 sudo make install
 ```
+
+**Note:** The `make install` command must be run from the `build/` directory after running CMake, as it requires the generated Makefiles with the install target.
 
 ### 3. Package Manager Installation
 
