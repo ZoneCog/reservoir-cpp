@@ -278,9 +278,9 @@ jobs:
       run: |
         echo "Creating/updating issues for missing functionality..."
         
-        # Create issue management script
+        # Create enhanced issue management script with GGML and cognitive grammar integration
         cat > manage_issues.py << 'EOF'
-        import json, subprocess, sys
+        import json, subprocess, sys, re
         from datetime import datetime
 
         def run_gh_command(cmd):
@@ -291,6 +291,85 @@ jobs:
                 print(f"Error running command: {cmd}")
                 print(f"Error: {e.stderr}")
                 return None
+
+        def get_function_complexity_analysis(func_name, module):
+            """Analyze function complexity and provide tensor dimension insights."""
+            complexity_map = {
+                # High-complexity tensor operations
+                'vect_wrapper': {
+                    'tensor_dims': '2D-4D (input vectors, batch processing)',
+                    'ggml_kernels': ['ggml_mul_mat', 'ggml_add', 'ggml_reshape'],
+                    'cognitive_complexity': 'High - Vector transformation with dynamic reshaping',
+                    'priority': 'Critical'
+                },
+                'rvs': {
+                    'tensor_dims': '1D-3D (random sampling matrices)',
+                    'ggml_kernels': ['ggml_set_random_f32', 'ggml_scale'],
+                    'cognitive_complexity': 'Medium - Stochastic tensor generation',
+                    'priority': 'High'
+                },
+                'data_rvs': {
+                    'tensor_dims': '2D-4D (data-driven random variables)',
+                    'ggml_kernels': ['ggml_mul_mat', 'ggml_set_random_f32', 'ggml_norm'],
+                    'cognitive_complexity': 'High - Data-aware stochastic processes',
+                    'priority': 'High'
+                },
+                'feedback_dim': {
+                    'tensor_dims': '1D (dimension metadata)',
+                    'ggml_kernels': ['ggml_get_ne', 'ggml_reshape'],
+                    'cognitive_complexity': 'Low - Dimension introspection',
+                    'priority': 'Medium'
+                },
+                'concat_multi_inputs': {
+                    'tensor_dims': 'Variable (multi-tensor concatenation)',
+                    'ggml_kernels': ['ggml_concat', 'ggml_view'],
+                    'cognitive_complexity': 'High - Multi-stream tensor fusion',
+                    'priority': 'Critical'
+                },
+                'unsupervised': {
+                    'tensor_dims': '2D-3D (learning state tensors)',
+                    'ggml_kernels': ['ggml_mul_mat', 'ggml_add', 'ggml_silu'],
+                    'cognitive_complexity': 'Medium - Unsupervised learning indicators',
+                    'priority': 'Medium'
+                }
+            }
+            
+            return complexity_map.get(func_name, {
+                'tensor_dims': '1D-2D (standard operations)',
+                'ggml_kernels': ['ggml_mul', 'ggml_add'],
+                'cognitive_complexity': 'Medium - Standard cognitive operation',
+                'priority': 'Medium'
+            })
+
+        def get_class_cognitive_analysis(class_name, module):
+            """Provide cognitive grammar analysis for missing classes."""
+            class_analysis = {
+                'Initializer': {
+                    'cognitive_role': 'Memory Initialization Node',
+                    'tensor_management': 'Manages weight initialization tensors with various distributions',
+                    'ggml_integration': 'Core tensor creation and distribution sampling',
+                    'degrees_of_freedom': 'High - Multiple initialization strategies and tensor shapes'
+                },
+                'Unsupervised': {
+                    'cognitive_role': 'Self-Organizing Learning Node',
+                    'tensor_management': 'Handles unsupervised learning state and adaptation tensors',
+                    'ggml_integration': 'Dynamic learning rate and plasticity tensor updates',
+                    'degrees_of_freedom': 'Very High - Adaptive learning parameters and state evolution'
+                },
+                'FrozenModel': {
+                    'cognitive_role': 'Immutable Cognitive State Container',
+                    'tensor_management': 'Read-only tensor operations with optimized inference paths',
+                    'ggml_integration': 'Optimized inference-only tensor computations',
+                    'degrees_of_freedom': 'Low - Fixed computational graph with no learning'
+                }
+            }
+            
+            return class_analysis.get(class_name, {
+                'cognitive_role': 'General Cognitive Processing Node',
+                'tensor_management': 'Standard tensor processing and transformation',
+                'ggml_integration': 'Basic GGML tensor operations',
+                'degrees_of_freedom': 'Medium - Standard parameter space'
+            })
 
         def create_or_update_issue(title, body, labels):
             # Check if issue already exists
@@ -325,78 +404,204 @@ jobs:
         except:
             missing_classes = []
 
-        # Create overview issue
+        # Create enhanced overview issue with cognitive grammar analysis
         total_missing = len(missing_functions) + len(missing_classes)
-        overview_title = f"Missing Python to C++ Implementation - {total_missing} items ({datetime.now().strftime('%Y-%m-%d')})"
+        overview_title = f"🧠 Cognitive Grammar Enhancement: {total_missing} Missing Tensor Nodes ({datetime.now().strftime('%Y-%m-%d')})"
         
-        overview_body = f"# Missing Python to C++ Implementation Status\\n\\n"
-        overview_body += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\\n"
-        overview_body += f"Total Missing Items: {total_missing}\\n\\n"
-        overview_body += f"## Summary\\n"
-        overview_body += f"- Missing Functions: {len(missing_functions)}\\n"
-        overview_body += f"- Missing Classes: {len(missing_classes)}\\n\\n"
-        overview_body += f"## Missing Functions ({len(missing_functions)})\\n"
+        overview_body = f"# 🧠 Cognitive Grammar Enhancement Status\\n\\n"
+        overview_body += f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\\n"
+        overview_body += f"**Total Missing Cognitive Nodes**: {total_missing}\\n"
+        overview_body += f"**Tensor Encoding Strategy**: Multi-dimensional cognitive state representation\\n\\n"
+        
+        overview_body += f"## 🎯 Cognitive Architecture Summary\\n"
+        overview_body += f"- **Missing Function Nodes**: {len(missing_functions)} (tensor operations requiring GGML integration)\\n"
+        overview_body += f"- **Missing Class Nodes**: {len(missing_classes)} (complex cognitive structures)\\n"
+        overview_body += f"- **Implementation Priority**: Focused on high-dimensional tensor processing\\n\\n"
+        
+        # Categorize functions by complexity
+        critical_funcs = []
+        high_funcs = []
+        medium_funcs = []
         
         for func in missing_functions:
+            analysis = get_function_complexity_analysis(func['name'], func['module'])
+            if analysis['priority'] == 'Critical':
+                critical_funcs.append(func)
+            elif analysis['priority'] == 'High':
+                high_funcs.append(func)
+            else:
+                medium_funcs.append(func)
+        
+        overview_body += f"## 🔴 Critical Priority Tensor Operations ({len(critical_funcs)})\\n"
+        for func in critical_funcs:
+            analysis = get_function_complexity_analysis(func['name'], func['module'])
+            overview_body += f"- **`{func['name']}`** (from `{func['module']}`)\\n"
+            overview_body += f"  - Tensor Dims: `{analysis['tensor_dims']}`\\n"
+            overview_body += f"  - GGML Kernels: `{', '.join(analysis['ggml_kernels'])}`\\n"
+        
+        overview_body += f"\\n## 🟡 High Priority Cognitive Nodes ({len(high_funcs)})\\n"
+        for func in high_funcs:
+            analysis = get_function_complexity_analysis(func['name'], func['module'])
+            overview_body += f"- **`{func['name']}`** → {analysis['cognitive_complexity']}\\n"
+        
+        overview_body += f"\\n## 🟢 Medium Priority Functions ({len(medium_funcs)})\\n"
+        for func in medium_funcs:
             overview_body += f"- `{func['name']}` (from `{func['module']}`)\\n"
         
-        overview_body += f"\\n## Missing Classes ({len(missing_classes)})\\n"
+        overview_body += f"\\n## 🏗️ Missing Class Architectures ({len(missing_classes)})\\n"
         for cls in missing_classes:
-            overview_body += f"- `{cls['name']}` (from `{cls['module']}`)\\n"
+            class_analysis = get_class_cognitive_analysis(cls['name'], cls['module'])
+            overview_body += f"- **`{cls['name']}`** → {class_analysis['cognitive_role']}\\n"
+            overview_body += f"  - Degrees of Freedom: {class_analysis['degrees_of_freedom']}\\n"
         
-        overview_body += f"\\n## Next Steps\\n"
-        overview_body += f"1. High Priority: Implement missing core functions and classes\\n"
-        overview_body += f"2. Medium Priority: Add missing buffer management functions\\n"
-        overview_body += f"3. Low Priority: Add convenience functions and edge case handling\\n\\n"
-        overview_body += f"## Tracking\\n"
-        overview_body += f"This issue is automatically updated daily. Individual implementation issues are created for each missing item.\\n\\n"
-        overview_body += f"Related Issues: Search for label `missing-implementation`"
+        overview_body += f"\\n## 🎯 Implementation Strategy\\n"
+        overview_body += f"1. **Phase 1**: Critical tensor operations with GGML kernel integration\\n"
+        overview_body += f"2. **Phase 2**: High-priority cognitive nodes with adaptive parameters\\n"
+        overview_body += f"3. **Phase 3**: Medium-priority functions and utility operations\\n"
+        overview_body += f"4. **Phase 4**: Complex class architectures with full cognitive grammar\\n\\n"
+        
+        overview_body += f"## 🔬 GGML Integration Requirements\\n"
+        overview_body += f"- All implementations must integrate with existing GGML tensor operations\\n"
+        overview_body += f"- Tensor dimensions should be validated and optimized for GPU execution\\n"
+        overview_body += f"- Memory management must follow GGML allocation patterns\\n"
+        overview_body += f"- Performance testing required for all high-dimensional operations\\n\\n"
+        
+        overview_body += f"## 📊 Progress Tracking\\n"
+        overview_body += f"This hypergraph of cognitive tasks is auto-updated daily. Individual implementation issues contain detailed GGML integration steps.\\n\\n"
+        overview_body += f"**Search Tags**: `missing-implementation`, `ggml-integration`, `cognitive-grammar`"
 
-        create_or_update_issue(overview_title, overview_body, ["enhancement", "missing-implementation", "auto-generated"])
+        create_or_update_issue(overview_title, overview_body, ["enhancement", "missing-implementation", "ggml-integration", "cognitive-grammar", "auto-generated"])
 
-        # Create individual issues for high-priority missing functions
-        high_priority_functions = ['vect_wrapper', 'rvs', 'data_rvs', 'feedback_dim', 'is_trained_offline', 'is_trained_online', 'unsupervised', 'concat_multi_inputs']
-
+        # Create enhanced individual issues for all missing functions with GGML integration
         for func in missing_functions:
-            if func['name'] in high_priority_functions:
-                title = f"Implement missing function: {func['name']}"
-                body = f"# Missing Function Implementation: `{func['name']}`\\n\\n"
-                body += f"Source Module: `{func['module']}`\\n"
-                body += f"Priority: High\\n"
-                body += f"Type: Function\\n\\n"
-                body += f"## Description\\n"
-                body += f"The function `{func['name']}` from the Python module `{func['module']}` is not implemented in the C++ codebase.\\n\\n"
-                body += f"## Expected Implementation\\n"
-                body += f"Please analyze the Python implementation in `TO_REMOVE/reservoirpy/{func['module']}` and create the corresponding C++ implementation.\\n\\n"
-                body += f"## Acceptance Criteria\\n"
-                body += f"- [ ] Function implemented in appropriate C++ header/source file\\n"
-                body += f"- [ ] Unit tests added for the function\\n"
-                body += f"- [ ] Documentation updated if necessary\\n"
-                body += f"- [ ] Functionality verification passes\\n\\n"
-                body += f"Auto-generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}"
-                
-                create_or_update_issue(title, body, ["enhancement", "missing-implementation", "high-priority", "function"])
-
-        # Create individual issues for missing classes
-        for cls in missing_classes:
-            title = f"Implement missing class: {cls['name']}"
-            body = f"# Missing Class Implementation: `{cls['name']}`\\n\\n"
-            body += f"Source Module: `{cls['module']}`\\n"
-            body += f"Priority: Medium\\n"
-            body += f"Type: Class\\n\\n"
-            body += f"## Description\\n"
-            body += f"The class `{cls['name']}` from the Python module `{cls['module']}` is not implemented in the C++ codebase.\\n\\n"
-            body += f"## Expected Implementation\\n"
-            body += f"Please analyze the Python implementation in `TO_REMOVE/reservoirpy/{cls['module']}` and create the corresponding C++ implementation.\\n\\n"
-            body += f"## Acceptance Criteria\\n"
-            body += f"- [ ] Class implemented in appropriate C++ header/source file\\n"
-            body += f"- [ ] All class methods implemented\\n"
-            body += f"- [ ] Unit tests added for the class\\n"
-            body += f"- [ ] Documentation updated if necessary\\n"
-            body += f"- [ ] Functionality verification passes\\n\\n"
-            body += f"Auto-generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            analysis = get_function_complexity_analysis(func['name'], func['module'])
             
-            create_or_update_issue(title, body, ["enhancement", "missing-implementation", "medium-priority", "class"])
+            title = f"⚡ GGML Implementation: {func['name']} tensor node"
+            body = f"# 🧠 Cognitive Function Node: `{func['name']}`\\n\\n"
+            body += f"**Source Module**: `{func['module']}`\\n"
+            body += f"**Priority**: {analysis['priority']}\\n"
+            body += f"**Cognitive Complexity**: {analysis['cognitive_complexity']}\\n"
+            body += f"**Tensor Dimensions**: {analysis['tensor_dims']}\\n\\n"
+            
+            body += f"## 🎯 Cognitive Grammar Analysis\\n"
+            body += f"This function represents a tensor node in the cognitive grammar with the following characteristics:\\n"
+            body += f"- **Degrees of Freedom**: Determined by input tensor dimensionality\\n"
+            body += f"- **Tensor Encoding**: Multi-dimensional state representation\\n"
+            body += f"- **Cognitive Role**: {func['name']} operation in reservoir computing hypergraph\\n\\n"
+            
+            body += f"## 🔧 GGML Kernel Requirements\\n"
+            body += f"Required GGML operations for implementation:\\n"
+            for kernel in analysis['ggml_kernels']:
+                body += f"- `{kernel}`: Core tensor operation\\n"
+            body += f"\\n**Memory Layout**: Optimize for GPU execution with proper tensor alignment\\n"
+            body += f"**Performance Target**: Sub-millisecond execution for typical tensor sizes\\n\\n"
+            
+            body += f"## 📋 Implementation Checklist\\n"
+            body += f"- [ ] **Analysis**: Study Python implementation in `TO_REMOVE/reservoirpy/{func['module']}`\\n"
+            body += f"- [ ] **Tensor Design**: Define input/output tensor dimensions and memory layout\\n"
+            body += f"- [ ] **GGML Integration**: Implement using required GGML kernels\\n"
+            body += f"- [ ] **C++ Implementation**: Create function in appropriate header/source files\\n"
+            body += f"- [ ] **GPU Optimization**: Ensure efficient GPU memory usage and kernel dispatch\\n"
+            body += f"- [ ] **Unit Tests**: Comprehensive testing with various tensor dimensions\\n"
+            body += f"- [ ] **Performance Tests**: Benchmark against Python implementation\\n"
+            body += f"- [ ] **Documentation**: Update API docs with tensor dimension specifications\\n"
+            body += f"- [ ] **Verification**: Ensure functionality verification passes\\n\\n"
+            
+            body += f"## 🧪 Testing Requirements\\n"
+            body += f"Rigorous verification (not mocks) with:\\n"
+            body += f"- Multiple tensor dimension combinations\\n"
+            body += f"- Edge cases (empty tensors, single elements, large batches)\\n"
+            body += f"- Performance comparison with Python reference\\n"
+            body += f"- Memory leak detection for tensor operations\\n"
+            body += f"- GPU/CPU execution path validation\\n\\n"
+            
+            body += f"## 🎪 Cognitive Grammar Integration\\n"
+            body += f"This tensor node contributes to the hypergraph of cognitive operations by:\\n"
+            body += f"- Enabling dynamic tensor transformations in the reservoir network\\n"
+            body += f"- Supporting recursive cognitive grammar kernel compositions\\n"
+            body += f"- Facilitating agentic attention allocation across tensor dimensions\\n\\n"
+            
+            body += f"**Auto-generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\\n"
+            body += f"**Cognitive Node ID**: `{func['module']}.{func['name']}`"
+            
+            labels = ["enhancement", "missing-implementation", "ggml-integration", "function", "cognitive-grammar"]
+            if analysis['priority'] == 'Critical':
+                labels.append("critical-priority")
+            elif analysis['priority'] == 'High':
+                labels.append("high-priority")
+            else:
+                labels.append("medium-priority")
+                
+            create_or_update_issue(title, body, labels)
+
+        # Create enhanced individual issues for missing classes with cognitive grammar analysis
+        for cls in missing_classes:
+            class_analysis = get_class_cognitive_analysis(cls['name'], cls['module'])
+            
+            title = f"🏗️ Cognitive Architecture: {cls['name']} class implementation"
+            body = f"# 🧠 Cognitive Class Node: `{cls['name']}`\\n\\n"
+            body += f"**Source Module**: `{cls['module']}`\\n"
+            body += f"**Cognitive Role**: {class_analysis['cognitive_role']}\\n"
+            body += f"**Degrees of Freedom**: {class_analysis['degrees_of_freedom']}\\n"
+            body += f"**Type**: Complex Cognitive Architecture\\n\\n"
+            
+            body += f"## 🎯 Cognitive Grammar Analysis\\n"
+            body += f"{class_analysis['tensor_management']}\\n\\n"
+            body += f"This class represents a sophisticated cognitive node that:\\n"
+            body += f"- Manages complex tensor state transformations\\n"
+            body += f"- Implements recursive cognitive grammar operations\\n"
+            body += f"- Supports dynamic tensor dimension adaptation\\n"
+            body += f"- Enables agentic hypergraph navigation\\n\\n"
+            
+            body += f"## 🔧 GGML Integration Strategy\\n"
+            body += f"{class_analysis['ggml_integration']}\\n\\n"
+            body += f"**Tensor Architecture Requirements**:\\n"
+            body += f"- Multi-dimensional state representation with optimal memory layout\\n"
+            body += f"- GPU-optimized tensor operations for all class methods\\n"
+            body += f"- Dynamic memory allocation patterns following GGML conventions\\n"
+            body += f"- Thread-safe tensor operations for parallel cognitive processing\\n\\n"
+            
+            body += f"## 📋 Implementation Checklist\\n"
+            body += f"- [ ] **Architecture Analysis**: Study Python class in `TO_REMOVE/reservoirpy/{cls['module']}`\\n"
+            body += f"- [ ] **Cognitive Design**: Define class hierarchy and tensor state management\\n"
+            body += f"- [ ] **GGML Integration**: Implement tensor operations for all methods\\n"
+            body += f"- [ ] **C++ Implementation**: Create class in appropriate header/source files\\n"
+            body += f"- [ ] **Method Implementation**: All class methods with tensor operations\\n"
+            body += f"- [ ] **State Management**: Proper tensor lifecycle and memory management\\n"
+            body += f"- [ ] **GPU Optimization**: Efficient GPU memory usage for class instances\\n"
+            body += f"- [ ] **Unit Tests**: Comprehensive testing of all class functionality\\n"
+            body += f"- [ ] **Integration Tests**: Testing interaction with other cognitive nodes\\n"
+            body += f"- [ ] **Performance Tests**: Benchmark complex tensor operations\\n"
+            body += f"- [ ] **Documentation**: Complete API documentation with tensor specifications\\n"
+            body += f"- [ ] **Verification**: Functionality verification passes\\n\\n"
+            
+            body += f"## 🧪 Rigorous Testing Requirements\\n"
+            body += f"**No Mock Objects** - All tests must use real tensor operations:\\n"
+            body += f"- Class instantiation with various tensor configurations\\n"
+            body += f"- Method execution with multi-dimensional tensor inputs\\n"
+            body += f"- State persistence and restoration across tensor operations\\n"
+            body += f"- Memory usage patterns under high tensor load\\n"
+            body += f"- Thread safety with concurrent tensor access\\n"
+            body += f"- Performance profiling of cognitive grammar operations\\n\\n"
+            
+            body += f"## 🎪 Hypergraph Integration\\n"
+            body += f"This cognitive class contributes to the distributed cognition system by:\\n"
+            body += f"- Implementing recursive self-modifying tensor operations\\n"
+            body += f"- Supporting dynamic cognitive grammar kernel composition\\n"
+            body += f"- Enabling agentic attention allocation across tensor dimensions\\n"
+            body += f"- Facilitating hypergraph navigation through cognitive state spaces\\n\\n"
+            
+            body += f"## 🔬 GGML Kernel Catalog Integration\\n"
+            body += f"Ensure compatibility with the unified GGML kernel catalog:\\n"
+            body += f"- Register tensor operations in the cognitive grammar registry\\n"
+            body += f"- Implement kernel composition for complex cognitive operations\\n"
+            body += f"- Support recursive tensor transformations through kernel chaining\\n"
+            body += f"- Enable dynamic kernel selection based on tensor characteristics\\n\\n"
+            
+            body += f"**Auto-generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\\n"
+            body += f"**Cognitive Architecture ID**: `{cls['module']}.{cls['name']}`"
+            
+            create_or_update_issue(title, body, ["enhancement", "missing-implementation", "ggml-integration", "class", "cognitive-grammar", "high-priority"])
 
         print(f"Issue management completed. Processed {total_missing} missing items.")
         EOF
