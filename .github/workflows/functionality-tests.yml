@@ -466,28 +466,12 @@ jobs:
         # Count total missing items with error protection
         TOTAL_MISSING=0
         if [[ -f "missing_functions.json" ]]; then
-          FUNC_COUNT=$(python3 -c "
-import json, sys
-try:
-    with open('missing_functions.json', 'r') as f:
-        data = json.load(f)
-    print(len(data))
-except:
-    print(0)
-" 2>/dev/null) || FUNC_COUNT=0
+          FUNC_COUNT=$(python3 -c "import json; f=open('missing_functions.json'); print(len(json.load(f))); f.close()" 2>/dev/null || echo "0")
           TOTAL_MISSING=$((TOTAL_MISSING + FUNC_COUNT)) 2>/dev/null || TOTAL_MISSING=0
         fi
         
         if [[ -f "missing_classes.json" ]]; then
-          CLASS_COUNT=$(python3 -c "
-import json, sys
-try:
-    with open('missing_classes.json', 'r') as f:
-        data = json.load(f)
-    print(len(data))
-except:
-    print(0)
-" 2>/dev/null) || CLASS_COUNT=0
+          CLASS_COUNT=$(python3 -c "import json; f=open('missing_classes.json'); print(len(json.load(f))); f.close()" 2>/dev/null || echo "0")
           TOTAL_MISSING=$((TOTAL_MISSING + CLASS_COUNT)) 2>/dev/null || TOTAL_MISSING=0
         fi
         
